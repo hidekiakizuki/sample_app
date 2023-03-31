@@ -1,0 +1,38 @@
+version: '3'
+services:
+  db:
+    image: postgres
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./docker/db/initdb:/docker-entrypoint-initdb.d
+  web:
+    build: .
+    image: web:0.0.1
+    container_name: web
+    volumes:
+      - .:/usr/local/src:cached
+      - ./log:/usr/local/src/log
+      - web_gems:/usr/local/bundle
+    ports:
+      - 3000:3000
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c "source ~/.bashrc
+      && rm -f /usr/local/src/tmp/pids/*.pid
+      && rm -f /usr/local/src/log/*.log
+      && bundle lock --add-platform x86_64-linux
+      && bundle install
+      && bundle exec rails s -p 3000 -b '0.0.0.0'"
+    depends_on:
+      - db
+volumes:
+  postgres:
+  web_gems:
