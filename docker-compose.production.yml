@@ -20,6 +20,8 @@ services:
       - .:/var/www/sample_app:cached
       - ./log:/var/www/sample_app/log
       - rails_web_gems:/usr/local/bundle
+      - public:/var/www/sample_app/public
+      - tmp:/var/www/sample_app/tmp
     ports:
       - 3000:3000
     tty: true
@@ -30,9 +32,23 @@ services:
       && rm -f /var/www/sample_app/log/*.log
       && bundle lock --add-platform x86_64-linux
       && bundle install
-      && bundle exec rails s -p 3000 -b '0.0.0.0'"
+      && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
+  nginx:
+    build:
+      context: docker/nginx
+    image: nginx:0.0.1
+    container_name: nginx
+    volumes:
+      - public:/var/www/sample_app/public
+      - tmp:/var/www/sample_app/tmp
+    ports:
+      - 80:80
+#    depends_on:
+#      - rails_web
 volumes:
   postgres:
   rails_web_gems:
+  public:
+  tmp:
