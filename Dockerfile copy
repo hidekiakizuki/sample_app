@@ -62,7 +62,6 @@ ARG RAILS_ENV
 ARG NODE_ENV
 ENV RAILS_ENV="${RAILS_ENV}" \
     NODE_ENV="${NODE_ENV}" \
-    APP_NAME="${APP_NAME}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
     USER="${USER}"
 
@@ -71,16 +70,12 @@ COPY --chown="${USER}":"${USER}" . .
 COPY --chown="${USER}":"${USER}" --from=assets /"${APP_NAME}"/public /"${APP_NAME}"/public
 RUN chmod 0755 ./bin/*
 
+ENTRYPOINT ["/${APP_NAME}/bin/entrypoint.sh"]
+
 CMD ["bash", "-c", "if [ \"$RAILS_ENV\" = \"development\" ]; then \
                       echo \"Running in development mode\" && \
-                      bundle exec rails db:create && \
-                      bundle exec rails db:migrate && \
-                      bundle exec rails db:seed && \
                       bundle exec rails s -p 3000 -b '0.0.0.0'; \
                     else \
                       echo \"Running in production mode\" && \
-                      bundle exec rails db:create && \
-                      bundle exec rails db:migrate && \
-                      bundle exec rails db:seed && \
                       bundle exec puma -C config/puma.rb; \
                     fi"]

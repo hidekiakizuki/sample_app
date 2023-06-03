@@ -1,0 +1,53 @@
+services:
+  sample_app_db:
+    image: postgres
+    container_name: sample_app_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - sample_app_postgres:/var/lib/postgresql/data
+      - ./docker/db/initdb:/docker-entrypoint-initdb.d
+  sample_app_rails_web:
+    build:
+      context: .
+      args:
+        - APP_NAME=sample_app
+        - RAILS_ENV=${RAILS_ENV:-production} # 本来はdevelopmentで環境変数でproductionを指定してやる必要がある
+        - NODE_ENV=${NODE_ENV:-production} # 本来はdevelopmentで環境変数でproductionを指定してやる必要がある
+    image: sample_app_rails_web:0.0.1
+    container_name: sample_app_rails_web
+    volumes:
+      - sample_tmp:/sample_app/tmp
+      - sample_public:/sample_app/public
+    env_file:
+      - .env # test
+    environment:
+      RAILS_MASTER_KEY: xxxx # test
+      SECRET_KEY_BASE: xxxx # test
+    ports:
+      - "3000:3000"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - sample_app_db
+  sample_app_nginx:
+    build:
+      context: docker/nginx
+    image: nginx:0.0.1
+    container_name: sample_app_nginx
+    volumes:
+      - sample_tmp:/sample_app/tmp
+      - sample_public:/sample_app/public
+    ports:
+      - 80:80
+    depends_on:
+      - sample_app_rails_web
+volumes:
+  sample_app_postgres:
+  sample_tmp:
+  sample_public:
+
+# docker compose -f compose.production_test.yaml up -d

@@ -37,4 +37,7 @@
 !/vendor/javascript
 /vendor/javascript/*
 !/vendor/javascript/.keep
+/tmp/sockets/*
+!/tmp/sockets/
+!/tmp/sockets/.keep
 .env
