@@ -21,8 +21,7 @@ RUN set -x && apt-get update \
 
 USER "${USER}"
 
-COPY --chown="${USER}":"${USER}" Gemfile ./
-COPY --chown="${USER}":"${USER}" Gemfile.lock ./
+COPY --chown="${USER}":"${USER}" Gemfile Gemfile.lock ./
 RUN bundle install --jobs "$(nproc)"
 
 ARG RAILS_ENV="development"
