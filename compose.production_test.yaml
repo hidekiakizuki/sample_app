@@ -36,7 +36,7 @@ services:
   sample_app_nginx:
     build:
       context: docker/nginx
-    image: nginx:0.0.1
+    image: sample_app_nginx:0.0.1
     container_name: sample_app_nginx
     volumes:
       - sample_tmp:/sample_app/tmp
@@ -49,5 +49,3 @@ volumes:
   sample_app_postgres:
   sample_tmp:
   sample_public:
-
-# docker compose -f compose.production_test.yaml up -d
