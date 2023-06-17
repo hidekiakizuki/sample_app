@@ -6,8 +6,6 @@ ARG APP_NAME="app"
 
 WORKDIR /"${APP_NAME}"
 
-# docker run -itd ruby:3.2.2-slim /bin/sh
-
 RUN set -x && apt-get update \
   && apt-get install -y --no-install-recommends build-essential curl git libpq-dev \
   && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
@@ -70,16 +68,6 @@ COPY --chown="${USER}":"${USER}" . .
 COPY --chown="${USER}":"${USER}" --from=assets /"${APP_NAME}"/public /"${APP_NAME}"/public
 RUN chmod 0755 ./bin/*
 
-CMD ["bash", "-c", "if [ \"$RAILS_ENV\" = \"development\" ]; then \
-                      echo \"Running in development mode\" && \
-                      bundle exec rails db:create && \
-                      bundle exec rails db:migrate && \
-                      bundle exec rails db:seed && \
-                      bundle exec rails s -p 3000 -b '0.0.0.0'; \
-                    else \
-                      echo \"Running in production mode\" && \
-                      bundle exec rails db:create && \
-                      bundle exec rails db:migrate && \
-                      bundle exec rails db:seed && \
-                      bundle exec puma -C config/puma.rb; \
-                    fi"]
+VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
+
+ENTRYPOINT [ "sh", "-c", "/${APP_NAME}/bin/entrypoint.sh" ]

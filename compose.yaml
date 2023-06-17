@@ -8,15 +8,15 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - sample_postgres:/var/lib/postgresql/data
+      - sample_app_postgres:/var/lib/postgresql/data
       - ./docker/db/initdb:/docker-entrypoint-initdb.d
   sample_app_rails_web:
     build:
       context: .
       args:
         - APP_NAME=sample_app
-    image: sample_app_rails_web:0.0.1
-    container_name: sample_app_rails_web
+    image: sample_app_rails_web:dev
+    container_name: sample_app_rails_web.dev
     volumes:
       - ./log:/sample_app/log
       - ./tmp:/sample_app/tmp
@@ -29,4 +29,4 @@ services:
     depends_on:
       - sample_app_db
 volumes:
-  sample_postgres:
+  sample_app_postgres:
