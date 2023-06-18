@@ -13,8 +13,11 @@ services:
   sample_app_rails_web:
     build:
       context: .
+      target: development
       args:
         - APP_NAME=sample_app
+        - RAILS_ENV=development
+        - NODE_ENV=development
     image: sample_app_rails_web:dev
     container_name: sample_app_rails_web.dev
     volumes:

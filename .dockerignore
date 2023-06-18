@@ -1,5 +1,4 @@
 .env*
-!.env.example
 .git/
 .git*
 .yarn-integrity

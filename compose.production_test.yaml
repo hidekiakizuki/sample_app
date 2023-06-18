@@ -13,10 +13,11 @@ services:
   sample_app_rails_web:
     build:
       context: .
+      target: production
       args:
         - APP_NAME=sample_app
-        - RAILS_ENV=${RAILS_ENV:-production}
-        - NODE_ENV=${NODE_ENV:-production}
+        - RAILS_ENV=production
+        - NODE_ENV=production
     image: sample_app_rails_web:prd
     container_name: sample_app_rails_web.prd
     volumes:
@@ -24,9 +25,6 @@ services:
       - sample_app_public:/sample_app/public
     env_file:
       - .env # test
-    environment:
-      RAILS_MASTER_KEY: xxxxxxxxxxxxxxxxxxxx # set your key
-      SECRET_KEY_BASE: xxxxxxxxxxxxxxxxxxxxx # set your key
     ports:
       - "3000:3000"
     tty: true

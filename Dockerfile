@@ -1,8 +1,12 @@
-FROM ruby:3.2.2-slim AS assets
-
 ARG USER="app-user"
 ARG USER_ID="1000"
 ARG APP_NAME="app"
+
+FROM ruby:3.2.2-slim AS assets
+
+ARG USER
+ARG USER_ID
+ARG APP_NAME
 
 WORKDIR /"${APP_NAME}"
 
@@ -22,8 +26,8 @@ USER "${USER}"
 COPY --chown="${USER}":"${USER}" Gemfile Gemfile.lock ./
 RUN bundle install --jobs "$(nproc)"
 
-ARG RAILS_ENV="development"
-ARG NODE_ENV="development"
+ARG RAILS_ENV="production"
+ARG NODE_ENV="production"
 ENV RAILS_ENV="${RAILS_ENV}" \
     NODE_ENV="${NODE_ENV}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
@@ -36,13 +40,13 @@ RUN if [ "${RAILS_ENV}" != "development" ]; then \
 
 CMD ["bash"]
 
-# ---
+# --------------------------------------------------
 
 FROM ruby:3.2.2-slim AS app
 
-ARG USER="app-user"
-ARG USER_ID="1000"
-ARG APP_NAME="app"
+ARG USER
+ARG USER_ID
+ARG APP_NAME
 
 WORKDIR /"${APP_NAME}"
 
@@ -68,6 +72,31 @@ COPY --chown="${USER}":"${USER}" . .
 COPY --chown="${USER}":"${USER}" --from=assets /"${APP_NAME}"/public /"${APP_NAME}"/public
 RUN chmod 0755 ./bin/*
 
+ENTRYPOINT ["./bin/entrypoint.sh"]
+
+# --------------------------------------------------
+
+# development
+FROM app as development
+
+#CMD ["bash", "-c", "tail -f /dev/null"]
+CMD ["bash", "-c", "echo \"Running in development mode\" && \
+                    bundle exec rails db:create && \
+                    bundle exec rails db:migrate && \
+                    bundle exec rails db:seed && \
+                    bundle exec rails s -p 3000 -b '0.0.0.0'"]
+
+# --------------------------------------------------
+
+# production
+FROM app as production
+
+ARG APP_NAME
+
 VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
-ENTRYPOINT [ "sh", "-c", "/${APP_NAME}/bin/entrypoint.sh" ]
+CMD ["bash", "-c", "echo \"Running in production mode\" && \
+                    # bundle exec rails db:create && \
+                    # bundle exec rails db:migrate && \
+                    # bundle exec rails db:seed && \
+                    bundle exec puma -C config/puma.rb"]
