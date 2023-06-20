@@ -1,12 +1,18 @@
 ARG USER="app-user"
 ARG USER_ID="1000"
 ARG APP_NAME="app"
+ARG RAILS_ENV="production"
+ARG NODE_ENV="production"
 
-FROM ruby:3.2.2-slim AS assets
+# ---------------------------------------------------------------
+
+FROM ruby:3.2.2-slim AS asset_base
 
 ARG USER
 ARG USER_ID
 ARG APP_NAME
+ARG RAILS_ENV
+ARG NODE_ENV
 
 WORKDIR /"${APP_NAME}"
 
@@ -21,10 +27,36 @@ RUN set -x && apt-get update \
   && useradd -m -u "${USER_ID}" "${USER}" \
   && chown "${USER}":"${USER}" -R /"${APP_NAME}"
 
+CMD ["bash"]
+
+# ---------------------------------------------------------------
+
+FROM asset_base AS asset_backend
+
+ARG USER
+ARG APP_NAME
+ARG RAILS_ENV
+ARG NODE_ENV
+
+WORKDIR /"${APP_NAME}"
 USER "${USER}"
 
 COPY --chown="${USER}":"${USER}" Gemfile Gemfile.lock ./
 RUN bundle install --jobs "$(nproc)"
+
+CMD ["bash"]
+
+# ---------------------------------------------------------------
+
+FROM asset_backend AS asset_frontend
+
+ARG USER
+ARG APP_NAME
+ARG RAILS_ENV
+ARG NODE_ENV
+
+WORKDIR /"${APP_NAME}"
+USER "${USER}"
 
 ARG RAILS_ENV="production"
 ARG NODE_ENV="production"
@@ -40,13 +72,15 @@ RUN if [ "${RAILS_ENV}" != "development" ]; then \
 
 CMD ["bash"]
 
-# --------------------------------------------------
+# ---------------------------------------------------------------
 
-FROM ruby:3.2.2-slim AS app
+FROM ruby:3.2.2-slim AS app_base
 
 ARG USER
 ARG USER_ID
 ARG APP_NAME
+ARG RAILS_ENV
+ARG NODE_ENV
 
 WORKDIR /"${APP_NAME}"
 
@@ -67,29 +101,28 @@ ENV RAILS_ENV="${RAILS_ENV}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
     USER="${USER}"
 
-COPY --chown="${USER}":"${USER}" --from=assets /usr/local/bundle /usr/local/bundle
+COPY --chown="${USER}":"${USER}" --from=asset_frontend /usr/local/bundle /usr/local/bundle
 COPY --chown="${USER}":"${USER}" . .
-COPY --chown="${USER}":"${USER}" --from=assets /"${APP_NAME}"/public /"${APP_NAME}"/public
+COPY --chown="${USER}":"${USER}" --from=asset_frontend /"${APP_NAME}"/public /"${APP_NAME}"/public
 RUN chmod 0755 ./bin/*
 
 ENTRYPOINT ["./bin/entrypoint.sh"]
 
-# --------------------------------------------------
+# ---------------------------------------------------------------
 
 # development
-FROM app as development
+FROM app_base as development
 
-#CMD ["bash", "-c", "tail -f /dev/null"]
 CMD ["bash", "-c", "echo \"Running in development mode\" && \
                     bundle exec rails db:create && \
                     bundle exec rails db:migrate && \
                     bundle exec rails db:seed && \
                     bundle exec rails s -p 3000 -b '0.0.0.0'"]
 
-# --------------------------------------------------
+# ---------------------------------------------------------------
 
 # production
-FROM app as production
+FROM app_base as production
 
 ARG APP_NAME
 
