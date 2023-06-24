@@ -37,6 +37,7 @@
 !/vendor/javascript
 /vendor/javascript/*
 !/vendor/javascript/.keep
+spec/examples.txt
 /tmp/sockets/*
 !/tmp/sockets/
 !/tmp/sockets/.keep

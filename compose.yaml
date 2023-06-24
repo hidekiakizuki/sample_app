@@ -21,8 +21,8 @@ services:
     image: sample_app_rails_web:dev
     container_name: sample_app_rails_web.dev
     volumes:
-      - ./log:/sample_app/log
-      - ./tmp:/sample_app/tmp
+      - .:/sample_app:cached
+      - sample_app_bundle:/usr/local/bundle
     env_file:
       - .env
     ports:
@@ -33,3 +33,4 @@ services:
       - sample_app_db
 volumes:
   sample_app_postgres:
+  sample_app_bundle:
