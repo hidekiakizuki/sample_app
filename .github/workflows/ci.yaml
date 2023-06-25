@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+    branches-ignore:
+      - main
+env:
+  RAILS_ENV: 'test'
+  POSTGRES_HOST: 'localhost'
+  POSTGRES_USER: 'postgres'
+  POSTGRES_PASSWORD: 'password'
+  TZ: 'Asia/Tokyo'
+
+jobs:
+  rubocop:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: rubocop
+        uses: reviewdog/action-rubocop@v2
+        with:
+          rubocop_version: gemfile
+          rubocop_extensions: rubocop-rails:gemfile rubocop-rspec:gemfile
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review
+
+  rspec:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15.3-alpine3.18
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+          cache: 'yarn'
+
+      - name: Yarn install
+        run: yarn install --frozen-lockfile
+
+      - name: Cache assets
+        uses: actions/cache@v3
+        with:
+          path: |
+            public/assets
+            tmp/cache/assets
+          key: build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+            build-cache-assets-${{ runner.os }}-${{ github.ref }}-
+            build-cache-assets-${{ runner.os }}-
+
+      - name: Run assets precompile
+        run: bundle exec rake assets:precompile --trace
+
+      - name: Setup Database
+        run: bundle exec rake parallel:setup --trace
+
+      - name: Run RSpec
+        run: bundle exec parallel_rspec

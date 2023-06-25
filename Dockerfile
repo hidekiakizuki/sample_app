@@ -6,7 +6,7 @@ ARG NODE_ENV="production"
 
 # ---------------------------------------------------------------
 
-FROM ruby:3.2.2-slim AS asset_base
+FROM ruby:3.2.2-slim AS asset_backend
 
 ARG USER
 ARG USER_ID
@@ -27,22 +27,13 @@ RUN set -x && apt-get update \
   && useradd -m -u "${USER_ID}" "${USER}" \
   && chown "${USER}":"${USER}" -R /"${APP_NAME}"
 
-CMD ["bash"]
-
-# ---------------------------------------------------------------
-
-FROM asset_base AS asset_backend
-
-ARG USER
-ARG APP_NAME
-ARG RAILS_ENV
-ARG NODE_ENV
-
-WORKDIR /"${APP_NAME}"
 USER "${USER}"
 
 COPY --chown="${USER}":"${USER}" Gemfile Gemfile.lock ./
 RUN bundle install --jobs "$(nproc)"
+
+#COPY --chown="${USER}":"${USER}" package.json yarn.lock ./
+#RUN yarn install
 
 CMD ["bash"]
 
@@ -82,6 +73,8 @@ ARG APP_NAME
 ARG RAILS_ENV
 ARG NODE_ENV
 
+ENV TZ Asia/Tokyo
+
 WORKDIR /"${APP_NAME}"
 
 RUN apt-get update \
@@ -101,7 +94,7 @@ ENV RAILS_ENV="${RAILS_ENV}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
     USER="${USER}"
 
-COPY --chown="${USER}":"${USER}" --from=asset_frontend /usr/local/bundle /usr/local/bundle
+COPY --chown="${USER}":"${USER}" --from=asset_backend /usr/local/bundle /usr/local/bundle
 COPY --chown="${USER}":"${USER}" . .
 COPY --chown="${USER}":"${USER}" --from=asset_frontend /"${APP_NAME}"/public /"${APP_NAME}"/public
 RUN chmod 0755 ./bin/*
