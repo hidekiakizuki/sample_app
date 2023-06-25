@@ -29,10 +29,6 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Check if rubocop-performance is installed
-        run: bundle exec gem list
-        shell: bash
-
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:
