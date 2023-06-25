@@ -30,7 +30,7 @@ jobs:
           bundler-cache: true
 
       - name: Check if rubocop-performance is installed
-        run: gem list
+        run: bundle exec gem list
         shell: bash
 
       - name: rubocop
@@ -38,6 +38,7 @@ jobs:
         with:
           rubocop_version: gemfile
           rubocop_extensions: rubocop-rails:gemfile rubocop-rspec:gemfile
+          use_bundler: true
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
 
