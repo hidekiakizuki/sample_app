@@ -29,14 +29,8 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: rubocop
-        uses: reviewdog/action-rubocop@v2
-        with:
-          rubocop_version: gemfile
-          rubocop_extensions: rubocop-rails:gemfile rubocop-rspec:gemfile
-          use_bundler: true
-          github_token: ${{ secrets.github_token }}
-          reporter: github-pr-review
+      - name: Run rubocop
+        run: bundle exec rubocop
 
   rspec:
     runs-on: ubuntu-latest
