@@ -30,7 +30,7 @@ jobs:
           bundler-cache: true
 
       - name: Check if rubocop-performance is installed
-        run: gem list
+        run: bundle exec gem list
         shell: bash
 
       - name: rubocop
