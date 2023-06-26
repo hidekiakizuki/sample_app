@@ -2,7 +2,6 @@
 
 class ArticlesController < ApplicationController
   def index
-    test = "rubocopでひっかかる"
     @articles = Article.all
   end
 

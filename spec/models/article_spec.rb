@@ -7,9 +7,5 @@ RSpec.describe Article do
   it 'trueであるとき、trueになること' do
     expect(true).to be true
   end
-
-  it 'trueであるとき、falseになること' do
-    expect(true).to be false
-  end
   # rubocop:enable RSpec/IdenticalEqualityAssertion, RSpec/ExpectActual
 end
