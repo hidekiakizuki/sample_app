@@ -1,6 +1,7 @@
 name: ci
 
 on:
+  workflow_call:
   pull_request:
     paths-ignore:
       - '**/*.md'
@@ -11,6 +12,7 @@ env:
   POSTGRES_HOST: 'localhost'
   POSTGRES_USER: 'postgres'
   POSTGRES_PASSWORD: 'password'
+  POSTGRES_DB: 'test'
   TZ: 'Asia/Tokyo'
 
 jobs:

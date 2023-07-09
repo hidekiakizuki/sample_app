@@ -3,9 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe Article do
-  # rubocop:disable RSpec/IdenticalEqualityAssertion, RSpec/ExpectActual
-  it 'trueであるとき、trueになること' do
-    expect(true).to be true
+  it 'テスト' do
+    article = create :article
+    expect(article).not_to be_nil
   end
-  # rubocop:enable RSpec/IdenticalEqualityAssertion, RSpec/ExpectActual
 end
