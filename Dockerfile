@@ -18,10 +18,10 @@ WORKDIR /"${APP_NAME}"
 
 RUN set -x && apt-get update \
   && apt-get install -y --no-install-recommends build-essential curl git libpq-dev \
-  && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-  && curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-  && echo 'deb https://dl.yarnpkg.com/debian stable main' | tee /etc/apt/sources.list.d/yarn.list \
-  && apt-get update && apt-get install -y --no-install-recommends nodejs yarn \
+  #&& curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+  #&& curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+  #&& echo 'deb https://dl.yarnpkg.com/debian stable main' | tee /etc/apt/sources.list.d/yarn.list \
+  #&& apt-get update && apt-get install -y --no-install-recommends nodejs yarn \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
   && apt-get clean \
   && useradd -m -u "${USER_ID}" "${USER}" \
@@ -123,7 +123,7 @@ ARG APP_NAME
 VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
 CMD ["bash", "-c", "echo \"Running in production mode\" && \
-                    # bundle exec rails db:create && \
-                    # bundle exec rails db:migrate && \
-                    # bundle exec rails db:seed && \
+                    #bundle exec rails db:create && \
+                    #bundle exec rails db:migrate && \
+                    #bundle exec rails db:seed && \
                     bundle exec puma -C config/puma.rb"]

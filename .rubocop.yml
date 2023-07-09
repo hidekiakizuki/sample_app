@@ -8,8 +8,9 @@ require:
 AllCops:
   NewCops: enable
   Exclude:
-    - "bin/**/*"
-    - "db/**/*"
+    - 'bin/**/*'
+    - 'db/**/*'
+    - 'vendor/**/*'
 
 Style/AsciiComments:
   Enabled: false
