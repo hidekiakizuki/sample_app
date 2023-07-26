@@ -74,11 +74,11 @@ jobs:
           path: |
             public/assets
             tmp/cache/assets
-          key: build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          key: asset-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-            build-cache-assets-${{ runner.os }}-${{ github.ref }}-
-            build-cache-assets-${{ runner.os }}-
+            assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+            assets-${{ runner.os }}-${{ github.ref }}-
+            assets-${{ runner.os }}-
 
       - name: Run assets precompile
         run: bundle exec rake assets:precompile --trace
