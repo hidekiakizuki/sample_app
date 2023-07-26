@@ -1,6 +1,7 @@
 name: ci
 
 on:
+  workflow_call:
   pull_request:
     paths-ignore:
       - '**/*.md'
@@ -11,6 +12,7 @@ env:
   POSTGRES_HOST: 'localhost'
   POSTGRES_USER: 'postgres'
   POSTGRES_PASSWORD: 'password'
+  POSTGRES_DB: 'test'
   TZ: 'Asia/Tokyo'
 
 jobs:
@@ -29,18 +31,8 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Check if rubocop-performance is installed
-        run: bundle exec gem list
-        shell: bash
-
-      - name: rubocop
-        uses: reviewdog/action-rubocop@v2
-        with:
-          rubocop_version: gemfile
-          rubocop_extensions: rubocop-rails:gemfile rubocop-rspec:gemfile
-          use_bundler: true
-          github_token: ${{ secrets.github_token }}
-          reporter: github-pr-review
+      - name: Run rubocop
+        run: bundle exec rubocop
 
   rspec:
     runs-on: ubuntu-latest
@@ -52,6 +44,9 @@ jobs:
         image: postgres:15.3-alpine3.18
         ports:
           - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 10
 
     steps:
@@ -64,14 +59,14 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: '.node-version'
-          cache: 'yarn'
+#      - name: Setup Node
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version-file: '.node-version'
+#          cache: 'yarn'
 
-      - name: Yarn install
-        run: yarn install --frozen-lockfile
+#      - name: Yarn install
+#        run: yarn install --frozen-lockfile
 
       - name: Cache assets
         uses: actions/cache@v3
@@ -79,11 +74,11 @@ jobs:
           path: |
             public/assets
             tmp/cache/assets
-          key: build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          key: asset-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            build-cache-assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-            build-cache-assets-${{ runner.os }}-${{ github.ref }}-
-            build-cache-assets-${{ runner.os }}-
+            assets-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+            assets-${{ runner.os }}-${{ github.ref }}-
+            assets-${{ runner.os }}-
 
       - name: Run assets precompile
         run: bundle exec rake assets:precompile --trace
