@@ -82,6 +82,11 @@ jobs:
         if: matrix.app == 'nginx'
         run: echo "image_nginx=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> $GITHUB_OUTPUT
 
+      - name: Debug Image Tags
+        run: |
+          echo "Image Rails Tag: ${{ steps.set-image-rails.outputs.image_rails }}"
+          echo "Image Nginx Tag: ${{ steps.set-image-nginx.outputs.image_nginx }}"
+
   render_task_definition_and_deploy:
     needs: build_and_push
 
@@ -97,6 +102,11 @@ jobs:
       - name: Download task definition
         run: |
           aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
+
+      - name: Debug Outputs
+        run: |
+          echo "Image Rails: ${{ needs.build_and_push.outputs.image_rails }}"
+          echo "Image Nginx: ${{ needs.build_and_push.outputs.image_nginx }}"
 
       - name: Render Amazon ECS task definition for rails
         id: render-task-definition-rails
