@@ -15,10 +15,23 @@ permissions:
 env:
   AWS_REGION: 'ap-northeast-1'
   AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
-  ECR_URI: ${{ github.ref == 'refs/heads/main' && secrets.ECR_URI_PROD || secrets.ECR_URI_STG }}
 
 jobs:
+  build_tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.build-tag.outputs.tag }}
+    steps:
+      - name: Build Tag
+        id: build-tag
+        run: |
+          TAG=$(TZ=UTC-9 date '+%Y-%m-%d')-${{ github.sha }}
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo TAG: $TAG
+
   build_and_push:
+    needs: build_tag
+
     runs-on: ubuntu-latest
 
     strategy:
@@ -52,13 +65,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build Tag
-        id: build-tag
-        run: |
-          TAG=$(TZ=UTC-9 date '+%Y-%m-%d')-${{ github.sha }}
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo TAG: $TAG
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -69,19 +75,20 @@ jobs:
           push: true
           context: ${{ matrix.build_context }}
           file: ${{ matrix.dockerfile }}
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Output image tag for rails
         id: set-image-rails
         if: matrix.app == 'rails'
-        run: echo "image_rails=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+        run: echo "image_rails=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Output image tag for nginx
         id: set-image-nginx
         if: matrix.app == 'nginx'
-        run: echo "image_nginx=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+        run: echo "image_nginx=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
 
       - name: Debug Image Tags
         run: |
