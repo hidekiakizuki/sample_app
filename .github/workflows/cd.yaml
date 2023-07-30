@@ -115,8 +115,8 @@ jobs:
       - name: Debug Outputs
         run: |
           echo "Tag: ${{ needs.build_tag.outputs.tag }}"
-          echo "Image Rails: ${{ needs.build_and_push.outputs.image_rails }}"
-          echo "Image Nginx: ${{ needs.build_and_push.outputs.image_nginx }}"
+          echo "Image Rails: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_rails }}:${{ needs.build_tag.outputs.tag }}"
+          echo "Image Nginx: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_nginx }}:${{ needs.build_tag.outputs.tag }}"
 
       - name: Render Amazon ECS task definition for rails
         id: render-task-definition-rails
