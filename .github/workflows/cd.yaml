@@ -15,6 +15,8 @@ permissions:
 env:
   AWS_REGION: 'ap-northeast-1'
   AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
+  IMAGE_NAME_RAILS: sample_app_rails_web
+  IMAGE_NAME_NGINX: sample_app_nginx
 
 jobs:
   build_tag:
@@ -41,11 +43,11 @@ jobs:
           - app: rails
             build_context: .
             dockerfile: ./Dockerfile
-            image_name: sample_app_rails_web
+            image_name: ${{ env.IMAGE_NAME_RAILS }}
           - app: nginx
             build_context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
-            image_name: sample_app_nginx
+            image_name: ${{ env.IMAGE_NAME_NGINX }}
 
     outputs:
       image_rails: ${{ steps.set-image-rails.outputs.image_rails }}
@@ -124,7 +126,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
-          image: ${{ needs.build_and_push.outputs.image_rails }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME_RAILS }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
         id: render-task-definition-nginx
@@ -132,7 +134,7 @@ jobs:
         with:
           task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
-          image: ${{ needs.build_and_push.outputs.image_nginx }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME_NGINX }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
