@@ -89,14 +89,15 @@ jobs:
         if: matrix.app == 'nginx'
         run: echo "image_nginx=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
-
       - name: Debug Image Tags
         run: |
           echo "Image Rails Tag: ${{ steps.set-image-rails.outputs.image_rails }}"
           echo "Image Nginx Tag: ${{ steps.set-image-nginx.outputs.image_nginx }}"
 
   render_task_definition_and_deploy:
-    needs: build_and_push
+    needs:
+      - build_tag
+      - build_and_push
 
     runs-on: ubuntu-latest
 
@@ -113,6 +114,7 @@ jobs:
 
       - name: Debug Outputs
         run: |
+          echo "Tag: ${{ needs.build_tag.outputs.tag }}"
           echo "Image Rails: ${{ needs.build_and_push.outputs.image_rails }}"
           echo "Image Nginx: ${{ needs.build_and_push.outputs.image_nginx }}"
 
