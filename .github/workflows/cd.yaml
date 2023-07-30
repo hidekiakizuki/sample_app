@@ -64,6 +64,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
+          context: .
           file: ${{ matrix.dockerfile }}
           tags: ${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}
           cache-from: type=gha
