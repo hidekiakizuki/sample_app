@@ -15,6 +15,7 @@ permissions:
 env:
   AWS_REGION: 'ap-northeast-1'
   AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
+  ECR_URI: ${{ github.ref == 'refs/heads/main' && secrets.ECR_URI_PROD || secrets.ECR_URI_STG }}
 
 jobs:
   build_and_push:
@@ -55,7 +56,7 @@ jobs:
         id: build-tag
         run: |
           TAG=$(TZ=UTC-9 date '+%Y-%m-%d')-${{ github.sha }}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
 
       - name: Set up Docker Buildx
@@ -75,12 +76,12 @@ jobs:
       - name: Output image tag for rails
         id: set-image-rails
         if: matrix.app == 'rails'
-        run: echo "image_rails=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_ENV"
+        run: echo "image_rails=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Output image tag for nginx
         id: set-image-nginx
         if: matrix.app == 'nginx'
-        run: echo "image_nginx=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_ENV"
+        run: echo "image_nginx=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ steps.build-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Debug Image Tags
         run: |
