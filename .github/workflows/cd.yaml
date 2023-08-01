@@ -50,9 +50,9 @@ jobs:
     outputs:
       image_rails: ${{ steps.set-image-rails.outputs.image_rails }}
       image_nginx: ${{ steps.set-image-nginx.outputs.image_nginx }}
-      test_secrets: ${{ steps.test.outputs.test_secrets }}
-      test_valiable: ${{ steps.test.outputs.test_valiable }}
-      test_hoge: ${{ steps.test.outputs.test_hoge }}
+      test_secrets: ${{ steps.test4.outputs.test_secrets }}
+      test_valiable: ${{ steps.test5.outputs.test_valiable }}
+      test_hoge: ${{ steps.test6.outputs.test_hoge }}
 
     steps:
       - name: Check out code
@@ -92,12 +92,35 @@ jobs:
         if: matrix.app == 'nginx'
         run: echo "image_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
 
-      - name: Debug Image Tags
-        id: test
+      - name: Debug echo TEST_SECRETS
+        id: test1
+        run: |
+          echo "TEST_SECRETS: ${{ secrets.TEST_SECRETS }}"
+
+      - name: Debug echo TEST_VARIABLE
+        id: test2
+        run: |
+          echo "TEST_VARIABLE: ${{ vars.TEST_VARIABLE }}"
+
+      - name: Debug echo TEST_HOGE
+        id: test3
+        run: |
+          echo "TEST_HOGE: ${{ secrets.TEST_HOGE }}"
+
+      - name: Debug test_secrets=
+        id: test4
         run: |
           echo "test_secrets=${{ secrets.TEST_SECRETS }}" >> "$GITHUB_OUTPUT"
-          echo "test_valiable=${{ env.TEST_VARIABLE }}" >> "$GITHUB_OUTPUT"
-          echo "test_hoge=${{ env.TEST_HOGE }}" >> "$GITHUB_OUTPUT"
+
+      - name: Debug test_valiable=
+        id: test5
+        run: |
+          echo "test_valiable=${{ vars.TEST_VARIABLE }}" >> "$GITHUB_OUTPUT"
+
+      - name: Debug test_hoge=
+        id: test6
+        run: |
+          echo "test_hoge=${{ secrets.TEST_HOGE }}" >> "$GITHUB_OUTPUT"
 
   render_task_definition_and_deploy:
     needs:
