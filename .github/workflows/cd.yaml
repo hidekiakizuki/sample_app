@@ -50,6 +50,9 @@ jobs:
     outputs:
       image_rails: ${{ steps.set-image-rails.outputs.image_rails }}
       image_nginx: ${{ steps.set-image-nginx.outputs.image_nginx }}
+      test_secrets: ${{ steps.test.outputs.test_secrets }}
+      test_valiable: ${{ steps.test.outputs.test_valiable }}
+      test_hoge: ${{ steps.test.outputs.test_hoge }}
 
     steps:
       - name: Check out code
@@ -90,9 +93,11 @@ jobs:
         run: echo "image_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
 
       - name: Debug Image Tags
+        id: test
         run: |
-          echo "Image Rails Tag: ${{ steps.set-image-rails.outputs.image_rails }}"
-          echo "Image Nginx Tag: ${{ steps.set-image-nginx.outputs.image_nginx }}"
+          echo "test_secrets=${{ secrets.TEST_SECRETS }}" >> "$GITHUB_OUTPUT"
+          echo "test_valiable=${{ env.TEST_VARIABLE }}" >> "$GITHUB_OUTPUT"
+          echo "test_hoge=${{ env.TEST_HOGE }}" >> "$GITHUB_OUTPUT"
 
   render_task_definition_and_deploy:
     needs:
@@ -102,6 +107,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -115,8 +123,10 @@ jobs:
       - name: Debug Outputs
         run: |
           echo "Tag: ${{ needs.build_tag.outputs.tag }}"
-          echo "Image Rails: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_rails }}:${{ needs.build_tag.outputs.tag }}"
-          echo "Image Nginx: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_nginx }}:${{ needs.build_tag.outputs.tag }}"
+          echo "test_secrets: ${{ needs.build_and_push.outputs.test_secrets }}"
+          echo "test_valiable: ${{ needs.build_and_push.outputs.test_valiable }}"
+          echo "test_hoge: ${{ needs.build_and_push.outputs.test_hoge }}"
+          echo "test_hoge is fuga"
 
       - name: Render Amazon ECS task definition for rails
         id: render-task-definition-rails
