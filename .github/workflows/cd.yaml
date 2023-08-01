@@ -19,8 +19,12 @@ env:
 jobs:
   build_tag:
     runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
     outputs:
       tag: ${{ steps.build-tag.outputs.tag }}
+
     steps:
       - name: Build Tag
         id: build-tag
@@ -33,6 +37,8 @@ jobs:
     needs: build_tag
 
     runs-on: ubuntu-latest
+
+    timeout-minutes: 10
 
     strategy:
       matrix:
@@ -48,8 +54,12 @@ jobs:
             image_name: sample_app_nginx
 
     outputs:
+      image_name_rails: ${{ steps.set-image-name-rails.outputs.image_name_rails }}
+      image_name_nginx: ${{ steps.set-image-name-nginx.outputs.image_name_nginx }}
       image_rails: ${{ steps.set-image-rails.outputs.image_rails }}
       image_nginx: ${{ steps.set-image-nginx.outputs.image_nginx }}
+      image_rails2: ${{ steps.set-image-rails2.outputs.image_rails2 }}
+      image_nginx2: ${{ steps.set-image-nginx2.outputs.image_nginx2 }}
       test_secrets: ${{ steps.test4.outputs.test_secrets }}
       test_valiable: ${{ steps.test5.outputs.test_valiable }}
       test_hoge: ${{ steps.test6.outputs.test_hoge }}
@@ -82,15 +92,35 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Output image name for rails
+        id: set-image-name-rails
+        if: matrix.app == 'rails'
+        run: echo "image_name_rails=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output image name for nginx
+        id: set-image-name-nginx
+        if: matrix.app == 'nginx'
+        run: echo "image_name_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Output image tag for rails
         id: set-image-rails
         if: matrix.app == 'rails'
-        run: echo "image_rails=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "image_rails=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Output image tag for nginx
         id: set-image-nginx
         if: matrix.app == 'nginx'
-        run: echo "image_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "image_nginx=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output image tag for rails2
+        id: set-image-rails2
+        if: matrix.app == 'rails'
+        run: echo "image_rails2=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output image tag for nginx2
+        id: set-image-nginx2
+        if: matrix.app == 'nginx'
+        run: echo "image_nginx2=${{ steps.login-ecr.outputs.registry }}/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Debug echo TEST_SECRETS
         id: test1
@@ -129,6 +159,8 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 10
+
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -146,6 +178,13 @@ jobs:
       - name: Debug Outputs
         run: |
           echo "Tag: ${{ needs.build_tag.outputs.tag }}"
+
+          echo "image_name_rails: ${{ needs.build_tag.outputs.image_name_rails }}"
+          echo "image_name_nginx: ${{ needs.build_tag.outputs.image_name_nginx }}"
+          echo "image_rails: ${{ needs.build_tag.outputs.image_rails }}"
+          echo "image_nginx: ${{ needs.build_tag.outputs.image_nginx }}"
+          echo "image_rails2: ${{ needs.build_tag.outputs.image_rails2 }}"
+          echo "image_nginx2: ${{ needs.build_tag.outputs.image_nginx2 }}"
           echo "test_secrets: ${{ needs.build_and_push.outputs.test_secrets }}"
           echo "test_valiable: ${{ needs.build_and_push.outputs.test_valiable }}"
           echo "test_hoge: ${{ needs.build_and_push.outputs.test_hoge }}"
@@ -157,7 +196,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_rails }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
         id: render-task-definition-nginx
@@ -165,7 +204,7 @@ jobs:
         with:
           task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_nginx }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
