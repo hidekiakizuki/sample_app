@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
       - release
 
 permissions:
@@ -47,10 +45,12 @@ jobs:
           - app: rails
             build_context: .
             dockerfile: ./Dockerfile
+            build-args: 'RAILS_ENV=production,NODE_ENV=production'
             image_name: sample_app_rails_web
           - app: nginx
             build_context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
+            build-args: ''
             image_name: sample_app_nginx
 
     outputs:
@@ -81,6 +81,7 @@ jobs:
           push: true
           context: ${{ matrix.build_context }}
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
           tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
