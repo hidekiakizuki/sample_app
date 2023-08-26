@@ -45,9 +45,7 @@ jobs:
           - app: rails
             build_context: .
             dockerfile: ./Dockerfile
-            build-args:
-              - RAILS_ENV=production
-              - NODE_ENV=production
+            build-args: APP_ENV=production
             image_name: sample_app_rails_web
           - app: nginx
             build_context: ./docker/nginx
