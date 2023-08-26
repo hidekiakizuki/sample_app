@@ -1,8 +1,7 @@
 ARG USER="app-user"
 ARG USER_ID="1000"
 ARG APP_NAME="sample_app"
-ARG RAILS_ENV="development"
-ARG NODE_ENV="development"
+ARG APP_ENV="development"
 
 # ---------------------------------------------------------------
 
@@ -11,8 +10,7 @@ FROM ruby:3.2.2-slim AS asset_backend
 ARG USER
 ARG USER_ID
 ARG APP_NAME
-ARG RAILS_ENV
-ARG NODE_ENV
+ARG APP_ENV
 
 WORKDIR /"${APP_NAME}"
 
@@ -42,17 +40,15 @@ CMD ["bash"]
 FROM asset_backend AS asset_frontend
 
 ARG USER
+ARG USER_ID
 ARG APP_NAME
-ARG RAILS_ENV
-ARG NODE_ENV
+ARG APP_ENV
 
 WORKDIR /"${APP_NAME}"
 USER "${USER}"
 
-ARG RAILS_ENV="development"
-ARG NODE_ENV="development"
-ENV RAILS_ENV="${RAILS_ENV}" \
-    NODE_ENV="${NODE_ENV}" \
+ENV RAILS_ENV="${APP_ENV}" \
+    NODE_ENV="${APP_ENV}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
     USER="${USER}"
 
@@ -70,8 +66,7 @@ FROM ruby:3.2.2-slim AS app_base
 ARG USER
 ARG USER_ID
 ARG APP_NAME
-ARG RAILS_ENV
-ARG NODE_ENV
+ARG APP_ENV
 
 ENV TZ Asia/Tokyo
 
@@ -86,10 +81,8 @@ RUN apt-get update \
 
 USER "${USER}"
 
-ARG RAILS_ENV
-ARG NODE_ENV
-ENV RAILS_ENV="${RAILS_ENV}" \
-    NODE_ENV="${NODE_ENV}" \
+ENV RAILS_ENV="${APP_ENV}" \
+    NODE_ENV="${APP_ENV}" \
     APP_NAME="${APP_NAME}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
     USER="${USER}"

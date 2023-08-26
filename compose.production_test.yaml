@@ -15,8 +15,7 @@ services:
       context: .
       target: production
       args:
-        - RAILS_ENV=production
-        - NODE_ENV=production
+        - APP_ENV=production
     image: sample_app_rails_web:prd
     container_name: sample_app_rails_web.prd
     volumes:
