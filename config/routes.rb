@@ -7,4 +7,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "articles#index"
   root 'articles#index'
+
+  get '/healthy'   => 'monitoring#healthy'
+  get '/synthetic' => 'monitoring#synthetic'
 end
