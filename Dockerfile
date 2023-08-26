@@ -1,8 +1,8 @@
 ARG USER="app-user"
 ARG USER_ID="1000"
-ARG APP_NAME="app"
-ARG RAILS_ENV="production"
-ARG NODE_ENV="production"
+ARG APP_NAME="sample_app"
+ARG RAILS_ENV="development"
+ARG NODE_ENV="development"
 
 # ---------------------------------------------------------------
 
@@ -49,8 +49,8 @@ ARG NODE_ENV
 WORKDIR /"${APP_NAME}"
 USER "${USER}"
 
-ARG RAILS_ENV="production"
-ARG NODE_ENV="production"
+ARG RAILS_ENV="development"
+ARG NODE_ENV="development"
 ENV RAILS_ENV="${RAILS_ENV}" \
     NODE_ENV="${NODE_ENV}" \
     PATH="${PATH}:/home/ruby/.local/bin" \
@@ -108,9 +108,9 @@ FROM app_base as development
 
 CMD ["bash", "-c", "echo \"Running in development mode\" && \
                     bundle install --jobs $(nproc) && \
-                    bundle exec rails db:create && \
+                    #bundle exec rails db:create && \
                     bundle exec rails db:migrate && \
-                    bundle exec rails db:seed && \
+                    #bundle exec rails db:seed && \
                     bundle exec rails s -p 3000 -b '0.0.0.0'"]
 
 # ---------------------------------------------------------------
@@ -124,6 +124,6 @@ VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
 CMD ["bash", "-c", "echo \"Running in production mode\" && \
                     #bundle exec rails db:create && \
-                    #bundle exec rails db:migrate && \
+                    bundle exec rails db:migrate && \
                     #bundle exec rails db:seed && \
                     bundle exec puma -C config/puma.rb"]

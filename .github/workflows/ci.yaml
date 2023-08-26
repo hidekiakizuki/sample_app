@@ -7,6 +7,7 @@ on:
       - '**/*.md'
     branches-ignore:
       - main
+
 env:
   RAILS_ENV: 'test'
   POSTGRES_HOST: 'localhost'
