@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -38,9 +38,6 @@ jobs:
       - name: Get list of changed files
         id: changed-files
         run: |
-          echo "before: ${{ github.event.before }}"
-          echo "after: ${{ github.event.after }}"
-          echo "now sha: ${{ github.sha }}"
           echo "files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.rb$|\.rake$' | xargs)" >> $GITHUB_OUTPUT
         continue-on-error: true
 
