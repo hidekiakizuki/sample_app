@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - release
+      - 'release/**'
 
 permissions:
   id-token: write
@@ -15,6 +15,9 @@ env:
   AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml
+
   build_tag:
     runs-on: ubuntu-latest
 
@@ -27,7 +30,7 @@ jobs:
       - name: Build Tag
         id: build-tag
         run: |
-          TAG=$(TZ=UTC-9 date '+%Y-%m-%d')-${{ github.sha }}
+          TAG=$(TZ=Asia/Tokyo date '+%Y-%m-%d')-${{ github.sha }}
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
 
