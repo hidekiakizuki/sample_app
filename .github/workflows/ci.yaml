@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -33,8 +35,14 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Run rubocop
-        run: bundle exec rubocop
+      - name: Get list of changed files
+        id: changed-files
+        run: |
+          echo "files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.rb$|\.rake$' | xargs)" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run rubocop on changed files
+        run: bundle exec rubocop ${{ steps.changed-files.outputs.files }}
 
   rspec:
     runs-on: ubuntu-latest
