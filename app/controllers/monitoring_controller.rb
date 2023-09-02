@@ -2,7 +2,7 @@
 
 class MonitoringController < ApplicationController
   def healthy
-    render plain: 'OK', status: :ok
+    render plain: 'OK test', status: :ok
   end
 
   def synthetic
