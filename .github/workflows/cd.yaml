@@ -19,6 +19,8 @@ jobs:
     uses: ./.github/workflows/ci.yaml
 
   build_tag:
+    needs: ci
+
     runs-on: ubuntu-latest
 
     timeout-minutes: 10
