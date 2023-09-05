@@ -32,12 +32,12 @@ jobs:
       - name: Build Tag
         id: build-tag
         run: |
-          if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
-            VERSION=$(git describe --tags)
-            TAG="${VERSION}-${{ github.sha }}"
-          else
+#          if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
+#            VERSION=$(git describe --tags)
+#            TAG="${VERSION}-${{ github.sha }}"
+#          else
             TAG=$(TZ=Asia/Tokyo date '+%Y-%m-%d')-${{ github.sha }}
-          fi
+#          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
 
