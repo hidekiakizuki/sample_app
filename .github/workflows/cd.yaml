@@ -109,7 +109,9 @@ jobs:
         run: echo "image_name_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
 
   render_task_definition_and_deploy:
-    needs: build_and_push
+    needs:
+      - build_tag
+      - build_and_push
 
     runs-on: ubuntu-latest
 
