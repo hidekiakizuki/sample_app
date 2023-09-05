@@ -4,9 +4,8 @@
 .yarn-integrity
 app/assets/builds/*
 !app/assets/builds/.keep
-bin/release/
 config/master.key
-docker/
+docker/*
 compose.*
 log/*
 !log/.keep
