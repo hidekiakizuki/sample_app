@@ -15,7 +15,7 @@
 
 set -e
 
-if [ -z "$1" ]; then
+if [ -z "$1" ] || [[ ! "$1" =~ ^(major|minor|patch)$ ]]; then
     echo "バージョンをインクリメントするタイプを指定してください。"
     echo "使用可能なオプション: major, minor, patch"
     exit 1
@@ -55,11 +55,6 @@ else
       ;;
     "patch")
       patch=$((patch + 1))
-      ;;
-    *)
-      echo "不正なタイプ: $1"
-      echo "使用可能なオプション: major, minor, patch"
-      exit 1
       ;;
   esac
 
