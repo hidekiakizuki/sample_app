@@ -29,11 +29,15 @@ jobs:
       tag: ${{ steps.build-tag.outputs.tag }}
 
     steps:
+      - name: Check out code
+        if: github.ref == 'refs/heads/main'
+        uses: actions/checkout@v3
+
       - name: Build Tag
         id: build-tag
         run: |
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
-            VERSION=$(git describe --tags)
+            VERSION=$(git describe --tags --abbrev=0)
             TAG="${VERSION}-${{ github.sha }}"
           else
             TAG=$(TZ=Asia/Tokyo date '+%Y-%m-%d')-${{ github.sha }}
