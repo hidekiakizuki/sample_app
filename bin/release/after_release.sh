@@ -31,9 +31,20 @@ if [[ -z "${release_branch}" ]]; then
     exit 1
 fi
 
+git fetch origin main
+git fetch origin develop
+git fetch origin ${release_branch}
+
 # リモートブランチの存在確認
 if ! git ls-remote --heads origin "${release_branch}" | grep "${release_branch}"; then
     echo "指定されたブランチ ${release_branch} はリモートリポジトリに存在しません。"
+    exit 1
+fi
+
+latest_release_commit=$(git rev-parse origin/${release_branch})
+
+if ! git branch -r --contains "${latest_release_commit}" | grep -q "origin/main"; then
+    echo "リリースブランチはまだmainにマージされていません。"
     exit 1
 fi
 
@@ -58,7 +69,15 @@ fi
 gh release create ${version} --target main --generate-notes
 echo "バージョン ${version} でリリースを作成しました。"
 
+# リリースブランチでのログの差分を取得
+base_commit=$(git merge-base origin/$release_branch origin/develop)
+log_diff=$(git log $base_commit..origin/$release_branch --pretty=format:"%h - %s (%an, %ad)")
+
+if [ -z "${log_diff}" ]; then
+  log_diff="このリリースブランチには追加のコミットはありません。ただし、履歴の一貫性を保つためにマージを実行します。"
+fi
+
 # プルリク作成
-gh pr create --base develop --head "${release_branch}" --title "Merge release ${version} back into develop" --body "Merging the changes from release ${version} back into develop." --web
+gh pr create --base develop --head "${release_branch}" --title "Back-merge ${release_branch} Changes to develop" --body "${log_diff}" --web
 echo "developにマージするプルリクを作成しました。"
 echo "処理が正常に終了しました。"

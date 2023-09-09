@@ -77,10 +77,11 @@ case $confirmation in
         echo "リリースブランチ $new_branch をリモートにpushしました。"
 
         # ログの差分を取得
-        log_diff=$(git log origin/main..origin/develop --pretty=format:"%s")
+        log_diff=$(git log origin/main..origin/develop --pretty=format:"%h - %s (%an, %ad)")
 
         # プルリク作成
-        gh pr create --base main --head "$new_branch" --title "リリースブランチ作成: ${new_version}" --body "$log_diff" --web
+        gh pr create --base main --head "$new_branch" --title "Merge ${new_branch} into main" --body "${log_diff}" --web
+
         echo "プルリクを作成しました。"
         echo "処理が正常に終了しました。"
         ;;
