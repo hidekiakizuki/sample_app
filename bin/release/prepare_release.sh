@@ -15,6 +15,12 @@
 
 set -e
 
+if [ -z "$1" ] || [[ ! "$1" =~ ^(major|minor|patch)$ ]]; then
+    echo "バージョンをインクリメントするタイプを指定してください。"
+    echo "使用可能なオプション: major, minor, patch"
+    exit 1
+fi
+
 # `gh` コマンドの存在確認
 if ! command -v gh >/dev/null 2>&1; then
     echo "'gh' コマンドが見つかりません。GitHub CLIをインストールしてください。"
@@ -43,17 +49,12 @@ else
       minor=0
       patch=0
       ;;
-    "minor"|"")
+    "minor")
       minor=$((minor + 1))
       patch=0
       ;;
     "patch")
       patch=$((patch + 1))
-      ;;
-    *)
-      echo "無効な引数: $1"
-      echo "正しい引数: major, minor, patch (省略時: minor)"
-      exit 1
       ;;
   esac
 
