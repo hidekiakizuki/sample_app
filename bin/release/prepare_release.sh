@@ -29,16 +29,14 @@ latest_tag=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)
 
 # タグが存在しない場合はデフォルトの0.0.0とする
 if [ -z "${latest_tag}" ]; then
-  latest_tag="v0.0.0"
-fi
+  new_version="v0.0.0"
+else
+  # バージョン番号を分割
+  major=$(echo ${latest_tag} | cut -d'.' -f1 | tr -d 'v')
+  minor=$(echo ${latest_tag} | cut -d'.' -f2)
+  patch=$(echo ${latest_tag} | cut -d'.' -f3)
 
-# バージョン番号を分割
-major=$(echo ${latest_tag} | cut -d'.' -f1 | tr -d 'v')
-minor=$(echo ${latest_tag} | cut -d'.' -f2)
-patch=$(echo ${latest_tag} | cut -d'.' -f3)
-
-# 引数に応じてバージョンをインクリメント
-if [ "${latest_tag}" != "v0.0.0" ]; then
+  # 引数に応じてバージョンをインクリメント
   case $1 in
     "major")
       major=$((major + 1))
@@ -54,13 +52,14 @@ if [ "${latest_tag}" != "v0.0.0" ]; then
       ;;
     *)
       echo "無効な引数: $1"
-      echo "正しい引数: major, minor, patch (省略時: patch)"
+      echo "正しい引数: major, minor, patch (省略時: minor)"
       exit 1
       ;;
   esac
+
+  new_version="v${major}.${minor}.${patch}"
 fi
 
-new_version="v${major}.${minor}.${patch}"
 new_branch="release/${new_version}"
 
 echo "最新のバージョン: ${latest_tag}"
