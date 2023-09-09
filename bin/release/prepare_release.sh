@@ -21,6 +21,7 @@ if ! command -v gh >/dev/null 2>&1; then
     exit 1
 fi
 
+git fetch --tags
 git fetch origin main
 
 # main ブランチから最新のタグを取得
