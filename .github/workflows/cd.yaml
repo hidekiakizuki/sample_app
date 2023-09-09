@@ -1,0 +1,159 @@
+name: cd
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: 'ap-northeast-1'
+  AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml
+
+  build_tag:
+    needs: ci
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    outputs:
+      tag: ${{ steps.build-tag.outputs.tag }}
+
+    steps:
+      - name: Build Tag
+        id: build-tag
+        run: |
+          if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
+            VERSION=$(git describe --tags)
+            TAG="${VERSION}-${{ github.sha }}"
+          else
+            TAG=$(TZ=Asia/Tokyo date '+%Y-%m-%d')-${{ github.sha }}
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo TAG: $TAG
+
+  build_and_push:
+    needs: build_tag
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        app: ['rails', 'nginx']
+        include:
+          - app: rails
+            build_context: .
+            dockerfile: ./Dockerfile
+            build-args: APP_ENV=production
+            image_name: sample_app_rails_web
+          - app: nginx
+            build_context: ./docker/nginx
+            dockerfile: ./docker/nginx/Dockerfile
+            build-args: ''
+            image_name: sample_app_nginx
+
+    outputs:
+      image_name_rails: ${{ steps.set-image-name-rails.outputs.image_name_rails }}
+      image_name_nginx: ${{ steps.set-image-name-nginx.outputs.image_name_nginx }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push to Amazon ECR
+        id: push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          context: ${{ matrix.build_context }}
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image name for rails
+        id: set-image-name-rails
+        if: matrix.app == 'rails'
+        run: echo "image_name_rails=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Output image name for nginx
+        id: set-image-name-nginx
+        if: matrix.app == 'nginx'
+        run: echo "image_name_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+
+  render_task_definition_and_deploy:
+    needs:
+      - build_tag
+      - build_and_push
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
+
+      - name: Render Amazon ECS task definition for rails
+        id: render-task-definition-rails
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
+
+      - name: Modify Amazon ECS task definition for nginx
+        id: render-task-definition-nginx
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
+
+      - name: Deploy to Amazon ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task-definition-nginx.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_NAME }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+          codedeploy-appspec: aws/appspec.json
+          codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
+          codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}

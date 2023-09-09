@@ -15,9 +15,7 @@ services:
       context: .
       target: production
       args:
-        - APP_NAME=sample_app
-        - RAILS_ENV=production
-        - NODE_ENV=production
+        - APP_ENV=production
     image: sample_app_rails_web:prd
     container_name: sample_app_rails_web.prd
     volumes:
@@ -33,7 +31,7 @@ services:
       - sample_app_db
   sample_app_nginx:
     build:
-      context: docker/nginx
+      context: ./docker/nginx
     image: sample_app_nginx:prd
     container_name: sample_app_nginx.prd
     volumes:
