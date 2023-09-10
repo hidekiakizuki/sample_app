@@ -51,7 +51,7 @@ if ! git branch -r --contains "${latest_release_commit}" | grep -q "origin/main"
 fi
 
 # ブランチ名からバージョン番号を抜き出す
-version=$(echo ${release_branch} | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*')
+version=$(echo ${release_branch} | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*' || true)
 
 # バージョン番号が取得できなければ終了
 if [[ -z ${version} ]]; then
@@ -60,8 +60,8 @@ if [[ -z ${version} ]]; then
 fi
 
 # ユーザーにバージョン番号の確認
-read -p "バージョン ${version} をmainブランチにタグ付けします。よろしいですか? (y/n) " -r
-echo
+echo "バージョン ${version} をmainブランチにタグ付けします。よろしいですか? (y/n) "
+read confirmation
 
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "キャンセルしました。"

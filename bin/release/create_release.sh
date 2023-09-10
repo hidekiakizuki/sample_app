@@ -61,27 +61,28 @@ else
   new_version="v${major}.${minor}.${patch}"
 fi
 
-# リモートリポジトリのブランチ一覧を取得
-remote_branches=$(git ls-remote --heads origin | awk -F'/' '{print $NF}')
-
-# 該当バージョン番号を含むブランチが存在するか確認
-matching_branches=$(echo "$remote_branches" | grep "$new_version")
-
-if [[ ! -z "${matching_branches}" ]]; then
-  echo "リモートリポジトリのブランチ名で${new_version}と部分一致するものが存在します。"
-  ehoc "ブランチ名に含まれるバージョン番号を適切なものに変更してください。"
-  echo "${matching_branches}"
-  exit 1
-fi
-
 new_branch="release/${new_version}"
 
 echo "現在のバージョン: ${latest_tag}"
 echo "新しいバージョン: ${new_version}"
-read -p "リリースブランチ ${new_branch} を作成します。よろしいですか? (y/n) " confirmation
+echo "リリースブランチ ${new_branch} を作成します。よろしいですか? (y/n) "
+read confirmation
 
 case ${confirmation} in
   [Yy]* )
+    # リモートリポジトリのブランチ一覧を取得
+    remote_branches=$(git ls-remote --heads origin | awk -F'/' '{print $NF}')
+
+    # 該当バージョン番号を含むブランチが存在するか確認
+    matching_branches=$(echo "${remote_branches}" | grep "${new_version}" || true)
+
+    if [[ ! -z "${matching_branches}" ]]; then
+      echo "リモートリポジトリのブランチ名で${new_version}と部分一致するものが存在します。"
+      echo "ブランチ名に含まれるバージョン番号を適切なものに変更してください。"
+      echo "${matching_branches}"
+      exit 1
+    fi
+
     git checkout develop
     git pull
 
