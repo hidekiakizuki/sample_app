@@ -49,14 +49,14 @@ read confirmation
 case ${confirmation} in
   [Yy]* )
     # リモートリポジトリのブランチ一覧を取得
-    remote_branches=$(git ls-remote --heads origin | awk -F'/' '{print $NF}')
+    remote_branches=$(git ls-remote --heads origin)
 
     # 該当バージョン番号を含むブランチが存在するか確認
-    matching_branches=$(echo "$remote_branches" | grep "$new_version" || true)
+    matching_branches=$(echo "${remote_branches}" | grep "${new_version}" || true)
 
     if [[ ! -z "${matching_branches}" ]]; then
       echo "リモートリポジトリのブランチ名で${new_version}と部分一致するものが存在します。"
-      ehoc "ブランチ名に含まれるバージョン番号を適切なものに変更してください。"
+      echo "リリース済みの場合はmainブランチにリリースを作成、未リリースの場合はブランチ名に含まれるバージョン番号を適切なものに変更してください。"
       echo "${matching_branches}"
       exit 1
     fi
