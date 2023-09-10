@@ -7,7 +7,6 @@ on:
       - '**/*.md'
     branches-ignore:
       - main
-      - 'release/**'
 
 env:
   RAILS_ENV: 'test'
