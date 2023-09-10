@@ -39,7 +39,8 @@ jobs:
         id: build-tag
         run: |
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
-            VERSION=$(git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' || true | head -n 1 | sed 's/\///')
+            VERSION=$( (git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' || true) | head -n 1 | sed 's/\///')
+            echo "VERSION: $VERSION"
           fi
           if [[ -z "$VERSION" ]]; then
             TAG=$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}
