@@ -35,13 +35,14 @@ fi
 
 git fetch origin main
 git fetch origin develop
-git fetch origin ${release_branch}
 
 # リモートブランチの存在確認
 if ! git ls-remote --heads origin "${release_branch}" | grep "${release_branch}"; then
   echo "指定されたブランチ ${release_branch} はリモートリポジトリに存在しません。"
   exit 1
 fi
+
+git fetch origin ${release_branch}
 
 latest_release_commit=$(git rev-parse origin/${release_branch})
 
