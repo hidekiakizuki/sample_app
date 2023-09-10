@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'release/**'
+      - 'hotfix/**'
 
 permissions:
   id-token: write
@@ -49,7 +50,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
 
-  build_and_push:
+  build_and_push_image:
     needs: build_tag
 
     runs-on: ubuntu-latest
@@ -119,7 +120,7 @@ jobs:
   render_task_definition_and_deploy:
     needs:
       - build_tag
-      - build_and_push
+      - build_and_push_image
 
     runs-on: ubuntu-latest
 
@@ -145,7 +146,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
         id: render-task-definition-nginx
@@ -153,7 +154,7 @@ jobs:
         with:
           task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
