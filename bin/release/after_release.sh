@@ -63,7 +63,7 @@ fi
 echo "バージョン ${version} をmainブランチにタグ付けします。よろしいですか? (y/n) "
 read confirmation
 
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if [[ ! ${confirmation} =~ ^[Yy]$ ]]; then
   echo "キャンセルしました。"
   exit 1
 fi
