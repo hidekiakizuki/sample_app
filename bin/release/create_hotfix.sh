@@ -2,7 +2,7 @@
 
 # ---------------------------------------------------------------------------
 # 概要:
-#   mainからhotfix作成後、mainへのマージのプルリクを作成します。
+#   mainからhotfixを作成します。
 #
 # 使用方法:
 #   ./create_hotfix.sh
@@ -10,6 +10,7 @@
 #
 # 注意点:
 #   - GitHub CLIのインストールが必要です。
+#   - 手動でプルリクを作成してください。
 #   - mainへのマージのプルリクはMerge Pull request(Create a merge commit)でマージしてください。
 # ---------------------------------------------------------------------------
 
@@ -68,10 +69,6 @@ case ${confirmation} in
     git push -u origin ${new_branch}
     echo "hotfixブランチ ${new_branch} をリモートにpushしました。"
 
-    # プルリク作成
-    gh pr create --base main --head "${new_branch}" --title "Merge ${new_branch} into main" --web
-
-    echo "プルリクを作成しました。"
     echo "処理が正常に終了しました。"
     ;;
   [Nn]* )
