@@ -32,15 +32,19 @@ jobs:
       - name: Check out code
         if: github.ref == 'refs/heads/main'
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Build Tag
         id: build-tag
         run: |
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
-            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            TAG="${VERSION}-${{ github.sha }}"
+            VERSION=$(git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -n 1 | sed 's/\///')
+          fi
+          if [[ -z "$VERSION" ]]; then
+            TAG=$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}
           else
-            TAG=$(TZ=Asia/Tokyo date '+%Y-%m-%d')-${{ github.sha }}
+            TAG="${VERSION}-${{ github.sha }}"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
