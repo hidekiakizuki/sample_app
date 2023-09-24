@@ -101,7 +101,7 @@ FROM app_base as development
 
 CMD ["bash", "-c", "echo \"Running in development mode\" && \
                     bundle install --jobs $(nproc) && \
-                    #bundle exec rails db:create && \
+                    (bundle exec rails db:create || true) && \
                     bundle exec rails db:migrate && \
                     #bundle exec rails db:seed && \
                     bundle exec rails s -p 3000 -b '0.0.0.0'"]
@@ -116,7 +116,7 @@ ARG APP_NAME
 VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
 CMD ["bash", "-c", "echo \"Running in production mode\" && \
-                    bundle exec rails db:create && \
+                    (bundle exec rails db:create || true) && \
                     bundle exec rails db:migrate && \
                     #bundle exec rails db:seed && \
                     bundle exec puma -C config/puma.rb"]
