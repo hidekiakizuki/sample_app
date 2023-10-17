@@ -98,6 +98,8 @@ jobs:
       - name: Build and push to Amazon ECR
         id: push
         uses: docker/build-push-action@v4
+        env:
+          DOCKER_CONTENT_TRUST: 1
         with:
           push: true
           context: ${{ matrix.build_context }}

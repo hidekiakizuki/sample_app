@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 class MonitoringController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   def healthy
-    render plain: 'OK', status: :ok
+    head :no_content
   end
 
   def synthetic
     Article.first
-    render plain: 'OK', status: :ok
+    head :no_content
   end
 end
