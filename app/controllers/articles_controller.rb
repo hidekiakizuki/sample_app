@@ -2,6 +2,7 @@
 
 class ArticlesController < ApplicationController
   def index
+    logger.info 'test!!!'
     @articles = Article.all
   end
 
