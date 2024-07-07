@@ -43,7 +43,7 @@ jobs:
             VERSION=$( (git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' || true) | head -n 1 | sed 's/\///')
           fi
           if [[ -z "$VERSION" ]]; then
-            TAG=$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}
+            TAG="staging-$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}"
           else
             TAG="${VERSION}-${{ github.sha }}"
           fi
@@ -65,12 +65,12 @@ jobs:
             build_context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            image_name: sample_app_rails_web
+            image_name: sample_app/rails_web
           - app: nginx
             build_context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
-            image_name: sample_app_nginx
+            image_name: sample_app/nginx
 
     outputs:
       image_name_rails: ${{ steps.set-image-name-rails.outputs.image_name_rails }}
