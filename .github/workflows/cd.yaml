@@ -147,7 +147,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
+          container-name: rails-web
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
@@ -155,7 +155,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
-          container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
+          container-name: nginx
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
 
       - name: Deploy to Amazon ECS service
