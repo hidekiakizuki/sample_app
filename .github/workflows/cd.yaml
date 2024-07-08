@@ -19,7 +19,7 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yaml
 
-  build_tag:
+  build-tag:
     needs: ci
 
     runs-on: ubuntu-latest
@@ -50,8 +50,8 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo TAG: $TAG
 
-  build_and_push_image:
-    needs: build_tag
+  build-and-push-image:
+    needs: build-tag
 
     runs-on: ubuntu-latest
 
@@ -59,22 +59,22 @@ jobs:
 
     strategy:
       matrix:
-        app: ['rails', 'nginx']
+        app: ['rails-web', 'nginx']
         include:
-          - app: rails
-            build_context: .
+          - app: rails-web
+            build-context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            image_name: sample_app/rails_web
+            image-name: sample_app/rails_web
           - app: nginx
-            build_context: ./docker/nginx
+            build-context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
-            image_name: sample_app/nginx
+            image-name: sample_app/nginx
 
     outputs:
-      image_name_rails: ${{ steps.set-image-name-rails.outputs.image_name_rails }}
-      image_name_nginx: ${{ steps.set-image-name-nginx.outputs.image_name_nginx }}
+      image-name-rails-web: ${{ steps.set-image-name-rails-web.outputs.image-name-rails-web }}
+      image-name-nginx: ${{ steps.set-image-name-nginx.outputs.image-name-nginx }}
 
     steps:
       - name: Check out code
@@ -102,27 +102,27 @@ jobs:
           DOCKER_CONTENT_TRUST: 1
         with:
           push: true
-          context: ${{ matrix.build_context }}
+          context: ${{ matrix.build-context }}
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
-          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image name for rails
-        id: set-image-name-rails
-        if: matrix.app == 'rails'
-        run: echo "image_name_rails=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+      - name: Output image name for rails-web
+        id: set-image-name-rails-web
+        if: matrix.app == 'rails-web'
+        run: echo "image-name-rails-web=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
 
       - name: Output image name for nginx
         id: set-image-name-nginx
         if: matrix.app == 'nginx'
-        run: echo "image_name_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "image-name-nginx=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
 
-  render_task_definition_and_deploy:
+  render-task-definition-and-deploy:
     needs:
-      - build_tag
-      - build_and_push_image
+      - build-tag
+      - build-and-push-image
 
     runs-on: ubuntu-latest
 
@@ -142,21 +142,21 @@ jobs:
         run: |
           aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
 
-      - name: Render Amazon ECS task definition for rails
-        id: render-task-definition-rails
+      - name: Render Amazon ECS task definition for rails-web
+        id: render-task-definition-rails-web
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: rails-web
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-rails-web }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
         id: render-task-definition-nginx
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
+          task-definition: ${{ steps.render-task-definition-rails-web.outputs.task-definition }}
           container-name: nginx
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-nginx }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
