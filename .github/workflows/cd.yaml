@@ -142,12 +142,24 @@ jobs:
         run: |
           aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
 
+      - name: Remove unnecessary fields from task definition
+        run: |
+          echo $(cat task-definition.json | jq 'del(
+            .compatibilities,
+            .taskDefinitionArn,
+            .requiresAttributes,
+            .revision,
+            .status,
+            .registeredAt,
+            .registeredBy
+          )') > task-definition.json
+
       - name: Render Amazon ECS task definition for rails-web
         id: render-task-definition-rails-web
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: rails-web
+          container-name: secrets.ECS_CONTAINER_NAME_RAILS
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-rails-web }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
@@ -155,9 +167,13 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-definition-rails-web.outputs.task-definition }}
-          container-name: nginx
+          container-name: secrets.ECS_CONTAINER_NAME_NGINX
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-nginx }}:${{ needs.build-tag.outputs.tag }}
 
+      - name: Prepare appspec.json
+        run: |
+          sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' aws/appspec.template.json > aws/appspec.json
+  
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
