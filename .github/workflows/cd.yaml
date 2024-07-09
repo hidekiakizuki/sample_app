@@ -159,7 +159,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: secrets.ECS_CONTAINER_NAME_RAILS
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-rails-web }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
@@ -167,7 +167,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-definition-rails-web.outputs.task-definition }}
-          container-name: secrets.ECS_CONTAINER_NAME_NGINX
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-nginx }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Prepare appspec.json
