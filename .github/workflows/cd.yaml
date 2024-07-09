@@ -172,7 +172,7 @@ jobs:
 
       - name: Prepare appspec.json
         run: |
-          sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' aws/appspec.template.json > aws/appspec.json
+          sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
   
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -181,6 +181,6 @@ jobs:
           service: ${{ secrets.ECS_SERVICE_NAME }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
           wait-for-service-stability: true
-          codedeploy-appspec: aws/appspec.json
+          codedeploy-appspec: .github/templates/appspec.json
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}
