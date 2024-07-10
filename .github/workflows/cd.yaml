@@ -128,9 +128,6 @@ jobs:
 
     timeout-minutes: 30
 
-    outputs:
-      deployment-id: ${{ steps.get-deployment-id.outputs.deployment_id }}
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -188,13 +185,6 @@ jobs:
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}
 
-      - name: Get deployment ID
-        id: get-deployment-id
-        run: |
-          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
-          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
-          echo DEPLOYMENT_ID: ${DEPLOYMENT_ID}
-
   notify:
     needs:
       - ci
@@ -207,15 +197,25 @@ jobs:
     if: always()
 
     steps:
+      - name: Get deployment ID
+        id: get-deployment-id
+        run: |
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo deployment_id: ${DEPLOYMENT_ID}
+
       - name: Determine Workflow Status
+        id: determine-workflow-status
         run: |
           if [ "${{ needs.ci.result }}" == "success" ] && \
              [ "${{ needs.build-tag.result }}" == "success" ] && \
              [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
              [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ]; then
-            echo "WORKFLOW_STATUS='success :tada:'" >> $GITHUB_ENV
+            echo "workflow_status=success :tada:" >> $GITHUB_OUTPUT
+            echo workflow_status: success
           else
-            echo "WORKFLOW_STATUS='failure :collision:'" >> $GITHUB_ENV
+            echo "workflow_status=failure :collision:" >> $GITHUB_OUTPUT
+            echo workflow_status: failure
           fi
 
       - name: Notify Slack
@@ -224,20 +224,20 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "ビルド結果: ${{ env.WORKFLOW_STATUS }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "ビルド結果: ${{ env.WORKFLOW_STATUS }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
+                    "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "ビルド成功時、問題がなければCodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeployの詳細>"
+                    "text": "ビルド成功時、問題がなければCodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.get-deployment-id.outputs.deployment_id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
                   }
                 }
               ]
