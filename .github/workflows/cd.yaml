@@ -19,7 +19,7 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yaml
 
-  build_tag:
+  build-tag:
     needs: ci
 
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Check out code
         if: github.ref == 'refs/heads/main'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -43,15 +43,15 @@ jobs:
             VERSION=$( (git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' || true) | head -n 1 | sed 's/\///')
           fi
           if [[ -z "$VERSION" ]]; then
-            TAG=$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}
+            TAG="staging-$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}"
           else
             TAG="${VERSION}-${{ github.sha }}"
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo TAG: $TAG
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo TAG: ${TAG}
 
-  build_and_push_image:
-    needs: build_tag
+  build-and-push-image:
+    needs: build-tag
 
     runs-on: ubuntu-latest
 
@@ -59,29 +59,29 @@ jobs:
 
     strategy:
       matrix:
-        app: ['rails', 'nginx']
+        app: ['rails-web', 'nginx']
         include:
-          - app: rails
-            build_context: .
+          - app: rails-web
+            build-context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            image_name: sample_app_rails_web
+            image-name: sample_app/rails_web
           - app: nginx
-            build_context: ./docker/nginx
+            build-context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
-            image_name: sample_app_nginx
+            image-name: sample_app/nginx
 
     outputs:
-      image_name_rails: ${{ steps.set-image-name-rails.outputs.image_name_rails }}
-      image_name_nginx: ${{ steps.set-image-name-nginx.outputs.image_name_nginx }}
+      image-name-rails-web: ${{ steps.set-image-name-rails-web.outputs.image-name-rails-web }}
+      image-name-nginx: ${{ steps.set-image-name-nginx.outputs.image-name-nginx }}
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
@@ -102,27 +102,27 @@ jobs:
           DOCKER_CONTENT_TRUST: 1
         with:
           push: true
-          context: ${{ matrix.build_context }}
+          context: ${{ matrix.build-context }}
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
-          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_name }}:${{ needs.build_tag.outputs.tag }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image name for rails
-        id: set-image-name-rails
-        if: matrix.app == 'rails'
-        run: echo "image_name_rails=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+      - name: Output image name for rails-web
+        id: set-image-name-rails-web
+        if: matrix.app == 'rails-web'
+        run: echo "image-name-rails-web=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
 
       - name: Output image name for nginx
         id: set-image-name-nginx
         if: matrix.app == 'nginx'
-        run: echo "image_name_nginx=${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
+        run: echo "image-name-nginx=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
 
-  render_task_definition_and_deploy:
+  render-task-definition-and-deploy:
     needs:
-      - build_tag
-      - build_and_push_image
+      - build-tag
+      - build-and-push-image
 
     runs-on: ubuntu-latest
 
@@ -130,10 +130,10 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
@@ -142,29 +142,114 @@ jobs:
         run: |
           aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
 
-      - name: Render Amazon ECS task definition for rails
-        id: render-task-definition-rails
+      - name: Remove unnecessary fields from task definition
+        run: |
+          echo $(cat task-definition.json | jq 'del(
+            .compatibilities,
+            .taskDefinitionArn,
+            .requiresAttributes,
+            .revision,
+            .status,
+            .registeredAt,
+            .registeredBy
+          )') > task-definition.json
+
+      - name: Render Amazon ECS task definition for rails-web
+        id: render-task-definition-rails-web
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_rails }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-rails-web }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for nginx
         id: render-task-definition-nginx
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.render-task-definition-rails.outputs.task-definition }}
+          task-definition: ${{ steps.render-task-definition-rails-web.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build_and_push_image.outputs.image_name_nginx }}:${{ needs.build_tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-nginx }}:${{ needs.build-tag.outputs.tag }}
 
+      - name: Prepare appspec.json
+        run: |
+          sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
+  
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-definition-nginx.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE_NAME }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-          wait-for-service-stability: true
-          codedeploy-appspec: aws/appspec.json
+          wait-for-service-stability: false
+          codedeploy-appspec: .github/templates/appspec.json
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}
+
+  notify:
+    needs:
+      - ci
+      - build-tag
+      - build-and-push-image
+      - render-task-definition-and-deploy
+
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get deployment ID
+        id: get-deployment-id
+        run: |
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo deployment_id: ${DEPLOYMENT_ID}
+
+      - name: Determine Workflow Status
+        id: determine-workflow-status
+        if: always()
+        run: |
+          if [ "${{ needs.ci.result }}" == "success" ] && \
+             [ "${{ needs.build-tag.result }}" == "success" ] && \
+             [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
+             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ job.status }}" == "success" ]; then
+            echo "workflow_status=success :tada:" >> $GITHUB_OUTPUT
+            echo workflow_status: success
+          else
+            echo "workflow_status=failure :collision:" >> $GITHUB_OUTPUT
+            echo workflow_status: failure
+          fi
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          payload: |
+            {
+              "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.get-deployment-id.outputs.deployment_id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

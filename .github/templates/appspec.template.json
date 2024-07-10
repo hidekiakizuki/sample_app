@@ -7,7 +7,7 @@
         "Properties": {
           "TaskDefinition": "<TASK_DEFINITION>",
           "LoadBalancerInfo": {
-            "ContainerName": "sample-app-nginx",
+            "ContainerName": "{{CONTAINER_NAME}}",
             "ContainerPort": 80
           }
         }
