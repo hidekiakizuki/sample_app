@@ -196,26 +196,40 @@ jobs:
           echo DEPLOYMENT_ID: ${DEPLOYMENT_ID}
 
   notify:
-    needs: render-task-definition-and-deploy
+    needs:
+      - ci
+      - build-tag
+      - build-and-push-image
+      - render-task-definition-and-deploy
 
     runs-on: ubuntu-latest
 
     if: always()
 
     steps:
+      - name: Determine Workflow Status
+        run: |
+          if [ "${{ needs.ci.result }}" == "success" ] && \
+             [ "${{ needs.build-tag.result }}" == "success" ] && \
+             [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
+             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ]; then
+            echo "WORKFLOW_STATUS='success :tada:'" >> $GITHUB_ENV
+          else
+            echo "WORKFLOW_STATUS='failure :collision:'" >> $GITHUB_ENV
+
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": ":github: ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "text": "ビルド結果: ${{ env.WORKFLOW_STATUS }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":github: ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                    "text": "ビルド結果: ${{ env.WORKFLOW_STATUS }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
                   }
                 },
                 {
