@@ -206,7 +206,7 @@ jobs:
       - name: Get deployment ID
         id: get-deployment-id
         run: |
-          DEPLOYMENT_ID=$(aws  list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
           echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
           echo deployment_id: ${DEPLOYMENT_ID}
 
