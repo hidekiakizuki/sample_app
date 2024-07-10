@@ -246,7 +246,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.get-deployment-id.outputs.deployment_id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
+                    "text": ":warning: デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.get-deployment-id.outputs.deployment_id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
                   }
                 }
               ]
