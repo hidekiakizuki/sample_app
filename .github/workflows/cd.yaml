@@ -216,6 +216,7 @@ jobs:
             echo "WORKFLOW_STATUS='success :tada:'" >> $GITHUB_ENV
           else
             echo "WORKFLOW_STATUS='failure :collision:'" >> $GITHUB_ENV
+          fi
 
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1.26.0
