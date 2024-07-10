@@ -47,8 +47,8 @@ jobs:
           else
             TAG="${VERSION}-${{ github.sha }}"
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo TAG: $TAG
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo TAG: ${TAG}
 
   build-and-push-image:
     needs: build-tag
@@ -128,6 +128,9 @@ jobs:
 
     timeout-minutes: 30
 
+    outputs:
+      deployment-id: ${{ steps.get-deployment-id.outputs.deployment_id }}
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -180,7 +183,49 @@ jobs:
           task-definition: ${{ steps.render-task-definition-nginx.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE_NAME }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-          wait-for-service-stability: true
+          wait-for-service-stability: false
           codedeploy-appspec: .github/templates/appspec.json
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}
+
+      - name: Get deployment ID
+        id: get-deployment-id
+        run: |
+          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo DEPLOYMENT_ID: ${DEPLOYMENT_ID}
+
+  notify:
+    needs: render-task-definition-and-deploy
+
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    steps:
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          payload: |
+            {
+              "text": ":github: ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":github: ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "ビルド成功時、問題がなければCodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeployの詳細>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
