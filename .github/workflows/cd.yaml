@@ -212,11 +212,13 @@ jobs:
 
       - name: Determine Workflow Status
         id: determine-workflow-status
+        if: always()
         run: |
           if [ "${{ needs.ci.result }}" == "success" ] && \
              [ "${{ needs.build-tag.result }}" == "success" ] && \
              [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
-             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ]; then
+             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ job.status }}" == "success" ]; then
             echo "workflow_status=success :tada:" >> $GITHUB_OUTPUT
             echo workflow_status: success
           else
@@ -225,6 +227,7 @@ jobs:
           fi
 
       - name: Notify Slack
+        if: always()
         uses: slackapi/slack-github-action@v1.26.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
