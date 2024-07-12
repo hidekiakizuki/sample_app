@@ -41,6 +41,8 @@ jobs:
     uses: ./.github/workflows/ci.yaml
 
   build-tag:
+    needs: check-active-deployments
+
     runs-on: ubuntu-latest
 
     timeout-minutes: 10
@@ -246,13 +248,13 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "ビルド結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n${{ github.event.pull_request.html_url }}",
+              "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "ビルド結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n<${{ github.event.pull_request.html_url }}|Pull Request>"
+                    "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
                   }
                 },
                 {
