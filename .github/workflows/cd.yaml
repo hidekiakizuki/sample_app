@@ -221,17 +221,19 @@ jobs:
 
     steps:
       - name: Get workflow conclusion
-        uses: technote-space/workflow-conclusion-action@v3
-
-      - name: Determine Workflow Status
-        id: determine-workflow-status
+        id: get-workflow-conclusion
         if: always()
         run: |
-          if [ "${{ env.WORKFLOW_CONCLUSION }}" == "success" ]; then
-            echo "workflow_status=success :tada:" >> $GITHUB_OUTPUT
+          if [ "${{ needs.check-active-deployments.result }}" == "success" ] && \
+             [ "${{ needs.ci.result }}" == "success" ] && \
+             [ "${{ needs.build-tag.result }}" == "success" ] && \
+             [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
+             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ job.status }}" == "success" ]; then
+            echo "workflow_status=:tada: success" >> $GITHUB_OUTPUT
             echo workflow_status: success
           else
-            echo "workflow_status=failure :collision:" >> $GITHUB_OUTPUT
+            echo "workflow_status=:collision: failure" >> $GITHUB_OUTPUT
             echo workflow_status: failure
           fi
 
@@ -242,20 +244,20 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "text": "ビルド結果: ${{ steps.get-workflow-conclusion.outputs.workflow_status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "ビルド結果: ${{ steps.determine-workflow-status.outputs.workflow_status }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
+                    "text": "ビルド結果: ${{ steps.get-workflow-conclusion.outputs.workflow_status }}\n\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
                   }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":warning: デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
+                    "text": "デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
                   }
                 }
               ]
