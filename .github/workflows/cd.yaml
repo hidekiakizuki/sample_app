@@ -16,12 +16,31 @@ env:
   AWS_ACCOUNT_ID: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ACCOUNT_ID_PROD || secrets.AWS_ACCOUNT_ID_STG }}
 
 jobs:
+  check-active-deployments:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check deployments
+        run: |
+          ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --include-only-statuses "Created" "Queued" "InProgress" --query 'deployments' --output text)
+          if [ -n "$ACTIVE_DEPLOYMENTS" ]; then
+            echo "Active deployment(s) found: $ACTIVE_DEPLOYMENTS"
+            exit 1
+          else
+            echo "No active deployments found."
+          fi
+
   ci:
+    needs: check-active-deployments
     uses: ./.github/workflows/ci.yaml
 
   build-tag:
-    needs: ci
-
     runs-on: ubuntu-latest
 
     timeout-minutes: 10
@@ -51,7 +70,9 @@ jobs:
           echo TAG: ${TAG}
 
   build-and-push-image:
-    needs: build-tag
+    needs:
+      - ci
+      - build-tag
 
     runs-on: ubuntu-latest
 
@@ -87,7 +108,6 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         with:
           mask-password: 'true'
@@ -96,7 +116,6 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build and push to Amazon ECR
-        id: push
         uses: docker/build-push-action@v4
         env:
           DOCKER_CONTENT_TRUST: 1
@@ -121,12 +140,14 @@ jobs:
 
   render-task-definition-and-deploy:
     needs:
-      - build-tag
       - build-and-push-image
 
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
+
+    outputs:
+      codedeploy-deployment-id: ${{ steps.deploy.outputs.codedeploy-deployment-id }}
 
     steps:
       - name: Check out code
@@ -173,8 +194,9 @@ jobs:
       - name: Prepare appspec.json
         run: |
           sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
-  
+
       - name: Deploy to Amazon ECS service
+        id: deploy
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-definition-nginx.outputs.task-definition }}
@@ -187,6 +209,7 @@ jobs:
 
   notify:
     needs:
+      - check-active-deployments
       - ci
       - build-tag
       - build-and-push-image
@@ -197,28 +220,14 @@ jobs:
     if: always()
 
     steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get deployment ID
-        id: get-deployment-id
-        run: |
-          DEPLOYMENT_ID=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --query "deployments[0]" --output text)
-          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
-          echo deployment_id: ${DEPLOYMENT_ID}
+      - name: Get workflow conclusion
+        uses: technote-space/workflow-conclusion-action@v3
 
       - name: Determine Workflow Status
         id: determine-workflow-status
         if: always()
         run: |
-          if [ "${{ needs.ci.result }}" == "success" ] && \
-             [ "${{ needs.build-tag.result }}" == "success" ] && \
-             [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
-             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
-             [ "${{ job.status }}" == "success" ]; then
+          if [ "${{ env.WORKFLOW_CONCLUSION }}" == "success" ]; then
             echo "workflow_status=success :tada:" >> $GITHUB_OUTPUT
             echo workflow_status: success
           else
@@ -246,7 +255,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":warning: デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.get-deployment-id.outputs.deployment_id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
+                    "text": ":warning: デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeployの最新デプロイ>"
                   }
                 }
               ]
