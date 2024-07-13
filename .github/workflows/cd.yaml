@@ -142,6 +142,7 @@ jobs:
 
   render-task-definition-and-deploy:
     needs:
+      - build-tag
       - build-and-push-image
 
     runs-on: ubuntu-latest
