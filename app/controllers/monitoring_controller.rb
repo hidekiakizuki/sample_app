@@ -2,11 +2,11 @@
 
 class MonitoringController < ApplicationController
   def healthy
-    head :no_content
+    head :ok
   end
 
   def synthetic
     Article.first
-    head :no_content
+    head :ok
   end
 end
