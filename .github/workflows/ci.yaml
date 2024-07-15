@@ -59,6 +59,10 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 10
 
     steps:
+      - name: Initialize Database
+        run: |
+          docker exec postgres psql -U $POSTGRES_USER -c "CREATE DATABASE $POSTGRES_DB WITH TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'"
+
       - name: Check out code
         uses: actions/checkout@v3
 
