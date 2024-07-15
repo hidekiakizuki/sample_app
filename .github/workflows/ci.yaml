@@ -61,8 +61,10 @@ jobs:
     steps:
       - name: Initialize Database
         run: |
-          docker exec postgres psql -U $POSTGRES_USER -c "CREATE DATABASE $POSTGRES_DB WITH TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'"
-
+          psql -h ${{ env.POSTGRES_HOST }} -U ${{ env.POSTGRES_USER }} -c "CREATE DATABASE ${{ env.POSTGRES_DB }}_test WITH TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'"
+        env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+    
       - name: Check out code
         uses: actions/checkout@v3
 
