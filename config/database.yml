@@ -16,6 +16,7 @@
 #
 default: &default
   adapter: postgresql
+  template: template0
   encoding: UTF-8
   collation: C
   ctype: C
