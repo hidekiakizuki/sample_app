@@ -10,6 +10,7 @@ Rails.application.routes.draw do
 
   get '/healthy'   => 'monitoring#healthy'
   get '/synthetic' => 'monitoring#synthetic'
+  get '/errors' => 'errors#crash'
 
   post '/csp-violation-report-endpoint', to: 'csp_violation_report#receive'
 end
