@@ -10,7 +10,9 @@ AllCops:
   Exclude:
     - 'bin/**/*'
     - 'db/**/*'
+    - 'config/**/*'
     - 'vendor/**/*'
+    - 'tmp/**/*'
 
 Style/AsciiComments:
   Enabled: false
