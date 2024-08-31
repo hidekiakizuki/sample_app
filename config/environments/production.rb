@@ -2,6 +2,10 @@
 
 require 'active_support/core_ext/integer/time'
 
+# 追加
+require Rails.root.join('lib/custom_log_formatters/json')
+require Rails.root.join('lib/custom_log_formatters/lograge')
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
@@ -85,12 +89,34 @@ Rails.application.configure do
   # require "syslog/logger"
   # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new "app-name")
 
-  if ENV['RAILS_LOG_TO_STDOUT'].present?
-    logger           = ActiveSupport::Logger.new($stdout)
-    logger.formatter = config.log_formatter
-    config.logger    = ActiveSupport::TaggedLogging.new(logger)
-  end
+  # 下部でロガーの設定をしているのでここはコメントアウトします。
+  # if ENV['RAILS_LOG_TO_STDOUT'].present?
+  #   logger           = ActiveSupport::Logger.new($stdout)
+  #   logger.formatter = config.log_formatter
+  #   config.logger    = ActiveSupport::TaggedLogging.new(logger)
+  # end
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
+
+  # 追加
+  config.colorize_logging = false
+
+  logger = ActiveSupport::Logger.new($stdout)
+  logger.formatter = CustomLogFormatters::Json.new
+  config.logger = ActiveSupport::TaggedLogging.new(logger)
+
+  config.lograge.enabled = true
+  config.lograge.formatter = CustomLogFormatters::Lograge.new
+  config.lograge.custom_payload do |controller|
+    request = controller.request
+    {
+      user_id:    controller.try(:current_user)&.id,
+      request_id: request.request_id,
+      remote_ip:  request.remote_ip,
+      host:       request.host,
+      url:        request.original_url,
+      user_agent: request.user_agent
+    }
+  end
 end
