@@ -23,4 +23,3 @@ Rails.application.routes.draw do
   get 'log/fatal'   => 'log#fatal'
   get 'log/unknown' => 'log#unknown'
 end
-
