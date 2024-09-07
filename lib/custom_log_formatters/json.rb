@@ -8,7 +8,7 @@ module CustomLogFormatters
         severity:,
         time:,
         hashed_tags:,
-        hashed_msg: hashed_msg(msg)
+        hashed_message: hashed_message(msg)
       )
 
       "#{log.to_json}\n"
@@ -16,12 +16,12 @@ module CustomLogFormatters
 
     private
 
-    def format(severity:, time:, hashed_tags:, hashed_msg:)
+    def format(severity:, time:, hashed_tags:, hashed_message:)
       {
-        time:  time.iso8601(6),
+        time:  time.in_time_zone.iso8601(3),
         level: severity,
         type:  'application'
-      }.merge(hashed_tags).merge(hashed_msg)
+      }.merge(hashed_tags).merge(hashed_message)
     end
 
     def hashed_tags
@@ -30,15 +30,21 @@ module CustomLogFormatters
       Rails.application.config.log_tags.zip(current_tags).to_h
     end
 
-    def hashed_msg(original_msg)
-      pure_msg = remove_tags(original_msg)
-      { message: pure_msg&.to_s }
+    def hashed_message(original_message)
+      pure_message = extract_pure_message(original_message)
+      parse_message(pure_message)
     end
 
-    def remove_tags(original_msg)
-      return original_msg if current_tags.blank?
+    def extract_pure_message(original_message)
+      return original_message if current_tags.blank?
 
-      original_msg&.split("[#{current_tags.last}] ")&.last
+      original_message&.split("[#{current_tags.last}] ")&.last
+    end
+
+    def parse_message(message)
+      JSON.parse(message, symbolize_names: true)
+    rescue JSON::ParserError
+      { message: message&.to_s }
     end
   end
 end

@@ -12,7 +12,7 @@ module CustomLogFormatters
 
     def format(payload)
       {
-        time:       Time.now.iso8601(6), # TODO
+        time:       Time.zone.now.iso8601(3),
         level:      level(payload[:status]),
         type:       'access',
         status:     payload[:status],
