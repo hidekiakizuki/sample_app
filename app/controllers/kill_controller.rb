@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ErrorsController < ApplicationController
+class KillController < ApplicationController
   def index
     Process.kill('TERM', Process.pid)
   end
