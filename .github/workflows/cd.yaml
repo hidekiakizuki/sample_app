@@ -242,11 +242,11 @@ jobs:
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: 成功しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeploy>" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy: https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: 失敗しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|GitHub Actions>" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Notify Slack
