@@ -238,12 +238,12 @@ jobs:
              [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
-            echo "message1=:tada: 成功しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy: https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
+            echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
-            echo "message1=:collision: 失敗しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Notify Slack
@@ -253,13 +253,13 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}",
+              "text": "${{ steps.get-workflow-conclusion.outputs.message1 }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\nCommit内容: ${{ github.event.head_commit.url }}"
+                    "text": "${{ steps.get-workflow-conclusion.outputs.message1 }}\nCommit内容\n${{ github.event.head_commit.url }}"
                   }
                 },
                 {
