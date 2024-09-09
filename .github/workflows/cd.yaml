@@ -99,14 +99,11 @@ jobs:
             ecr-repo-name: sample_app/web_server
 
     outputs:
-      image-name-web-app: ${{ steps.set-image-name-web-app.outputs.image-name-web-app }}
-      image-name-web-server: ${{ steps.set-image-name-web-server.outputs.image-name-web-server }}
+      # タグ付きイメージを渡したいところですが、env.AWS_ACCOUNT_IDがsecretsでマスキングされるのでECRリポジトリ名を渡します。
+      ecr-repo-name-web-app: ${{ steps.set-ecr-repo-name-web-app.outputs.ecr-repo-name-web-app }}
+      ecr-repo-name-web-server: ${{ steps.set-ecr-repo-name-web-server.outputs.ecr-repo-name-web-server }}
 
     steps:
-      - name: define image name
-        id: define-image-name
-        run: echo "current-image-name=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
-
       - name: Check out code
         uses: actions/checkout@v4
 
@@ -133,19 +130,19 @@ jobs:
           context: ${{ matrix.build-context }}
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
-          tags: ${{ steps.define-image-name.outputs.current-image-name }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image name for web-app
-        id: set-image-name-web-app
+      - name: Output ECR repository name for web-app
+        id: set-ecr-repo-name-web-app
         if: matrix.app == 'web-app'
-        run: echo "image-name-web-app=${{ steps.define-image-name.outputs.current-image-name }}" >> "$GITHUB_OUTPUT"
+        run: echo "ecr-repo-name-web-app=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
-      - name: Output image name for web-server
-        id: set-image-name-web-server
+      - name: Output ECR repository name for web-server
+        id: set-ecr-repo-name-web-server
         if: matrix.app == 'web-server'
-        run: echo "image-name-web-server=${{ steps.define-image-name.outputs.current-image-name }}" >> "$GITHUB_OUTPUT"
+        run: echo "ecr-repo-name-web-server=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
   render-task-definition-and-deploy:
     needs:
@@ -191,7 +188,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_APP }}
-          image: ${{ needs.build-and-push-image.outputs.image-name-web-app }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-app }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for web-server
         id: modify-task-definition-image-web-server
@@ -199,7 +196,7 @@ jobs:
         with:
           task-definition: ${{ steps.modify-task-definition-image-web-app.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}
-          image: ${{ needs.build-and-push-image.outputs.image-name-web-server }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-server }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Prepare appspec.json
         run: |
