@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -68,13 +68,13 @@ jobs:
           PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
-          bundler-cache: true
+          bundler-cache: true # actions/cacheよりもこちらのオプションを利用します。 https://github.com/ruby/setup-ruby/tree/v1/?tab=readme-ov-file#caching-bundle-install-manually
 
 #      - name: Setup Node
 #        uses: actions/setup-node@v3

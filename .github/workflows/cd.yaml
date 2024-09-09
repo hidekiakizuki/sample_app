@@ -28,7 +28,7 @@ jobs:
 
       - name: Check deployments
         run: |
-          ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }} --include-only-statuses "Created" "Queued" "InProgress" --query 'deployments' --output text)
+          ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }} --include-only-statuses "Created" "Queued" "InProgress" --query 'deployments' --output text)
           if [ -n "$ACTIVE_DEPLOYMENTS" ]; then
             echo "Active deployment(s) found: $ACTIVE_DEPLOYMENTS"
             exit 1
@@ -62,6 +62,9 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
             VERSION=$( (git log --merges -n 1 --pretty=%B | grep -o '/v[0-9]\+\.[0-9]\+\.[0-9]\+' || true) | head -n 1 | sed 's/\///')
+            if [[ -z "$VERSION" ]]; then
+              VERSION="1.0.0"
+            fi
           fi
           if [[ -z "$VERSION" ]]; then
             TAG="staging-$(TZ=Asia/Tokyo date '+%Y-%m%d-%H%M%S')-${{ github.sha }}"
@@ -82,22 +85,23 @@ jobs:
 
     strategy:
       matrix:
-        app: ['rails-web', 'nginx']
+        app: ['web-app', 'web-server']
         include:
-          - app: rails-web
+          - app: web-app
             build-context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            image-name: sample_app/rails_web
-          - app: nginx
+            ecr-repo-name: sample_app/web_app
+          - app: web-server
             build-context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
-            image-name: sample_app/nginx
+            ecr-repo-name: sample_app/web_server
 
     outputs:
-      image-name-rails-web: ${{ steps.set-image-name-rails-web.outputs.image-name-rails-web }}
-      image-name-nginx: ${{ steps.set-image-name-nginx.outputs.image-name-nginx }}
+      # タグ付きイメージを渡したいところですが、env.AWS_ACCOUNT_IDがsecretsでマスキングされるのでECRリポジトリ名を渡します。
+      ecr-repo-name-web-app: ${{ steps.set-ecr-repo-name-web-app.outputs.ecr-repo-name-web-app }}
+      ecr-repo-name-web-server: ${{ steps.set-ecr-repo-name-web-server.outputs.ecr-repo-name-web-server }}
 
     steps:
       - name: Check out code
@@ -110,7 +114,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'true'
 
@@ -126,19 +130,19 @@ jobs:
           context: ${{ matrix.build-context }}
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
-          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image-name }}:${{ needs.build-tag.outputs.tag }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image name for rails-web
-        id: set-image-name-rails-web
-        if: matrix.app == 'rails-web'
-        run: echo "image-name-rails-web=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
+      - name: Output ECR repository name for web-app
+        id: set-ecr-repo-name-web-app
+        if: matrix.app == 'web-app'
+        run: echo "ecr-repo-name-web-app=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
-      - name: Output image name for nginx
-        id: set-image-name-nginx
-        if: matrix.app == 'nginx'
-        run: echo "image-name-nginx=${{ matrix.image-name }}" >> "$GITHUB_OUTPUT"
+      - name: Output ECR repository name for web-server
+        id: set-ecr-repo-name-web-server
+        if: matrix.app == 'web-server'
+        run: echo "ecr-repo-name-web-server=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
   render-task-definition-and-deploy:
     needs:
@@ -164,7 +168,7 @@ jobs:
 
       - name: Download task definition
         run: |
-          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME }} --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME_WEB }} --query taskDefinition > task-definition.json
 
       - name: Remove unnecessary fields from task definition
         run: |
@@ -178,37 +182,37 @@ jobs:
             .registeredBy
           )') > task-definition.json
 
-      - name: Render Amazon ECS task definition for rails-web
-        id: render-task-definition-rails-web
+      - name: Modify Amazon ECS task definition for web-app
+        id: modify-task-definition-image-web-app
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: ${{ secrets.ECS_CONTAINER_NAME_RAILS }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-rails-web }}:${{ needs.build-tag.outputs.tag }}
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_APP }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-app }}:${{ needs.build-tag.outputs.tag }}
 
-      - name: Modify Amazon ECS task definition for nginx
-        id: render-task-definition-nginx
+      - name: Modify Amazon ECS task definition for web-server
+        id: modify-task-definition-image-web-server
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.render-task-definition-rails-web.outputs.task-definition }}
-          container-name: ${{ secrets.ECS_CONTAINER_NAME_NGINX }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.image-name-nginx }}:${{ needs.build-tag.outputs.tag }}
+          task-definition: ${{ steps.modify-task-definition-image-web-app.outputs.task-definition }}
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-server }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Prepare appspec.json
         run: |
-          sed 's/{{CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_NGINX }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
+          sed 's/{{LB_INFO_CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
 
       - name: Deploy to Amazon ECS service
         id: deploy
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
-          task-definition: ${{ steps.render-task-definition-nginx.outputs.task-definition }}
-          service: ${{ secrets.ECS_SERVICE_NAME }}
-          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          task-definition: ${{ steps.modify-task-definition-image-web-server.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_NAME_WEB }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME_WEB }}
           wait-for-service-stability: false
           codedeploy-appspec: .github/templates/appspec.json
-          codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION }}
-          codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP }}
+          codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }}
+          codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }}
 
   notify:
     needs:
@@ -234,12 +238,12 @@ jobs:
              [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
-            echo "message1=:tada: 成功しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\n<https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}|CodeDeploy>" >> $GITHUB_OUTPUT
+            echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
-            echo "message1=:collision: 失敗しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|GitHub Actions>" >> $GITHUB_OUTPUT
+            echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Notify Slack
@@ -249,13 +253,13 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "text": "${{ steps.get-workflow-conclusion.outputs.message1 }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "デプロイ結果: ${{ steps.get-workflow-conclusion.outputs.message1 }}\n<${{ github.event.pull_request.html_url || github.event.head_commit.url }}|Commit内容>"
+                    "text": "${{ steps.get-workflow-conclusion.outputs.message1 }}\nCommit内容\n${{ github.event.head_commit.url }}"
                   }
                 },
                 {
