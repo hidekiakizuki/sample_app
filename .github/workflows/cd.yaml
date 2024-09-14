@@ -212,7 +212,7 @@ jobs:
           task-definition: ${{ steps.modify-task-definition-image-web-server.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE_NAME_WEB }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME_WEB }}
-          wait-for-service-stability: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
+          wait-for-service-stability: false
           codedeploy-appspec: .github/templates/appspec.json
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }}
@@ -241,13 +241,8 @@ jobs:
              [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
-            if [ "${{ github.ref }}" == 'refs/heads/main' ]; then
-              echo "message1=:tada: 本番環境へのデプロイに成功しました" >> $GITHUB_OUTPUT
-              echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
-            else
-              echo "message1=:tada: ステージング環境へのデプロイに成功しました" >> $GITHUB_OUTPUT
-              echo "message2=ステージング環境で問題がないか確認してください。" >> $GITHUB_OUTPUT
-            fi
+            echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
