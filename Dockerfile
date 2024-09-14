@@ -68,7 +68,7 @@ ARG USER_ID
 ARG APP_NAME
 ARG APP_ENV
 
-ENV TZ Asia/Tokyo
+ENV TZ=Asia/Tokyo
 
 WORKDIR /"${APP_NAME}"
 
@@ -97,7 +97,7 @@ ENTRYPOINT ["./bin/entrypoint.sh"]
 # ---------------------------------------------------------------
 
 # development
-FROM app_base as development
+FROM app_base AS development
 
 CMD ["bash", "-c", "echo \"Running in development mode\" && \
                     bundle install --jobs $(nproc) && \
@@ -109,7 +109,7 @@ CMD ["bash", "-c", "echo \"Running in development mode\" && \
 # ---------------------------------------------------------------
 
 # production
-FROM app_base as production
+FROM app_base AS production
 
 ARG APP_NAME
 
