@@ -12,14 +12,14 @@ services:
     volumes:
       - sample_app_postgres:/var/lib/postgresql/data
       - ./docker/db/initdb:/docker-entrypoint-initdb.d
-  sample_app_rails_web:
+  sample_app_web_rails:
     build:
       context: .
       target: production
       args:
         - APP_ENV=production
-    image: sample_app_rails_web:prd
-    container_name: sample_app_rails_web.prd
+    image: sample_app_web_rails:prd
+    container_name: sample_app_web_rails.prd
     volumes:
       - sample_app_tmp:/sample_app/tmp
       - sample_app_public:/sample_app/public
@@ -31,18 +31,19 @@ services:
     stdin_open: true
     depends_on:
       - sample_app_db
-  sample_app_nginx:
+  sample_app_web_nginx:
     build:
       context: ./docker/nginx
-    image: sample_app_nginx:prd
-    container_name: sample_app_nginx.prd
+      target: production
+    image: sample_app_web_nginx:prd
+    container_name: sample_app_web_nginx.prd
     volumes:
       - sample_app_tmp:/sample_app/tmp:ro
       - sample_app_public:/sample_app/public:ro
     ports:
       - 80:80
     depends_on:
-      - sample_app_rails_web
+      - sample_app_web_rails
 volumes:
   sample_app_postgres:
   sample_app_tmp:

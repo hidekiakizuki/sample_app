@@ -86,7 +86,7 @@ jobs:
 #        run: yarn install --frozen-lockfile
 
       - name: Cache assets
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             public/assets
