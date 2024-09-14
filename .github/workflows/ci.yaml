@@ -41,7 +41,7 @@ jobs:
         continue-on-error: true
 
       - name: Run rubocop on changed files
-        run: bundle exec rubocop ${{ steps.changed-files.outputs.files }}
+        run: bundle exec rubocop --force-exclusion ${{ steps.changed-files.outputs.files }}
 
   rspec:
     runs-on: ubuntu-latest
