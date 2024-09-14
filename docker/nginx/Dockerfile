@@ -1,4 +1,6 @@
-FROM nginx:1.23.4-alpine3.17-slim
+FROM nginx:1.23.4-alpine3.17-slim as production
+
+RUN apk add --no-cache curl
 
 RUN rm -f /etc/nginx/conf.d/*
 
