@@ -87,3 +87,8 @@ group :test do
   gem 'selenium-webdriver'
   gem 'webdrivers'
 end
+
+#  追加
+group :production do
+  gem 'lograge', '~> 0.12.0'
+end
