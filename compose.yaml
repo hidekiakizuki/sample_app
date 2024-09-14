@@ -12,14 +12,14 @@ services:
     volumes:
       - sample_app_postgres:/var/lib/postgresql/data
       - ./docker/db/initdb:/docker-entrypoint-initdb.d
-  sample_app_rails_web:
+  sample_app_web_rails:
     build:
       context: .
       target: development
       args:
         - APP_ENV=development
-    image: sample_app_rails_web:dev
-    container_name: sample_app_rails_web.dev
+    image: sample_app_web_rails:dev
+    container_name: sample_app_web_rails.dev
     volumes:
       - .:/sample_app:cached
       - sample_app_bundle:/usr/local/bundle

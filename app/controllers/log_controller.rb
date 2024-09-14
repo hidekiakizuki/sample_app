@@ -15,7 +15,7 @@ class LogController < ApplicationController
     logger.info '■■■■■■ log warn'
     head :no_content
   end
-  
+
   def error
     logger.error '■■■■■■ log error'
     head :no_content
