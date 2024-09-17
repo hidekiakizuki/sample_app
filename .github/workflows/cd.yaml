@@ -92,13 +92,19 @@ jobs:
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
             ecr-repo-name: sample_app/web_app
-            target: production
+            target: web_production
           - app: web-server
             build-context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
             ecr-repo-name: sample_app/web_server
             target: production
+          - app: batch
+            build-context: .
+            dockerfile: ./Dockerfile
+            build-args: APP_ENV=production
+            ecr-repo-name: sample_app/batch
+            target: batch_production
 
     outputs:
       # タグ付きイメージを渡したいところですが、env.AWS_ACCOUNT_IDがsecretsでマスキングされるのでECRリポジトリ名を渡します。
