@@ -12,14 +12,14 @@ services:
     volumes:
       - sample_app_postgres:/var/lib/postgresql/data
       - ./docker/db/initdb:/docker-entrypoint-initdb.d
-  sample_app_web_rails:
+  sample_app_web_app:
     build:
       context: .
-      target: development
+      target: web_development
       args:
         - APP_ENV=development
-    image: sample_app_web_rails:dev
-    container_name: sample_app_web_rails.dev
+    image: sample_app_web_app:dev
+    container_name: sample_app_web_app.dev
     volumes:
       - .:/sample_app:cached
       - sample_app_bundle:/usr/local/bundle
@@ -31,6 +31,23 @@ services:
     stdin_open: true
     depends_on:
       - sample_app_db
+  sample_app_batch:
+    build:
+      context: .
+      target: batch_development
+      args:
+        - APP_ENV=development
+    image: sample_app_batch:dev
+    container_name: sample_app_batch.dev
+    volumes:
+      - .:/sample_app:cached
+      - sample_app_bundle:/usr/local/bundle
+    env_file:
+      - .env
+    tty: true
+    stdin_open: true
+    depends_on:
+      - sample_app_web_app
 volumes:
   sample_app_postgres:
   sample_app_bundle:
