@@ -96,10 +96,11 @@ ENTRYPOINT ["./bin/entrypoint.sh"]
 
 # ---------------------------------------------------------------
 
-# development
-FROM app_base AS development
+# web_development
+FROM app_base AS web_development
 
 CMD ["bash", "-c", "echo \"Running in development mode\" && \
+                    rm -f \"/${APP_NAME}/tmp/pids/server.pid\" && \
                     bundle install --jobs $(nproc) && \
                     (bundle exec rails db:create || true) && \
                     bundle exec rails db:migrate && \
@@ -108,15 +109,36 @@ CMD ["bash", "-c", "echo \"Running in development mode\" && \
 
 # ---------------------------------------------------------------
 
-# production
-FROM app_base AS production
+# web_production
+FROM app_base AS web_production
 
 ARG APP_NAME
 
 VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
 CMD ["bash", "-c", "echo \"Running in production mode\" && \
+                    rm -f \"/${APP_NAME}/tmp/pids/server.pid\" && \
                     (bundle exec rails db:create || true) && \
                     bundle exec rails db:migrate && \
                     #bundle exec rails db:seed && \
                     bundle exec puma -C config/puma.rb"]
+
+# ---------------------------------------------------------------
+
+# batch
+FROM app_base AS batch_development
+
+ARG APP_NAME
+
+CMD ["bash", "-c", "echo \"Running in development mode\" && \
+                    bundle install --jobs $(nproc) && \
+                    sleep infinity"]
+
+# ---------------------------------------------------------------
+
+# batch
+FROM app_base AS batch_production
+
+ARG APP_NAME
+
+CMD ["sleep", "infinity"]
