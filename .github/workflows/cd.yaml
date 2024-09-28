@@ -283,6 +283,9 @@ jobs:
         run: |
           jq '.' job-definition.json
 
+      - name: Check AWS CLI version
+        run: aws --version
+  
       - name: Register new AWS Batch job definition
         run: |
           aws batch register-job-definition --cli-input-json job-definition.json
