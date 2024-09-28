@@ -279,6 +279,10 @@ jobs:
         run: |
           cat job-definition.json
     
+      - name: Validate JSON structure
+        run: |
+          jq '.' job-definition.json
+
       - name: Register new AWS Batch job definition
         run: |
           aws batch register-job-definition --cli-input-json job-definition.json
