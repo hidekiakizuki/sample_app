@@ -248,9 +248,21 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download AWS Batch job definition
+#      - name: Download AWS Batch job definition
+#        run: |
+#          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch'], &revision)[-1]" > job-definition.json
+
+      - name: Debug AWS Batch job definition output
         run: |
           aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch'], &revision)[-1]" > job-definition.json
+          cat job-definition.json
+
+      - name: Check if job-definition.json exists
+        run: |
+          if [ ! -f job-definition.json ]; then
+            echo "job-definition.json not found!"
+            exit 1
+          fi
 
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
