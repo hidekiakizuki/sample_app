@@ -257,10 +257,6 @@ jobs:
           aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
           cat job-definition.json
 
-      - name: Check if job-definition.json exists
-        run: |
-          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch'], &revision)[-1]" > job-definition.json
-
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
           jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
