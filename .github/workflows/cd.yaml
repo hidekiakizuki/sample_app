@@ -259,10 +259,7 @@ jobs:
 
       - name: Check if job-definition.json exists
         run: |
-          if [ ! -f job-definition.json ]; then
-            echo "job-definition.json not found!"
-            exit 1
-          fi
+          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch'], &revision)[-1]" > job-definition.json
 
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
