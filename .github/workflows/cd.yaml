@@ -263,12 +263,8 @@ jobs:
 
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
-          echo $(cat job-definition.json | jq 'del(
-            .jobDefinitionArn,
-            .revision,
-            .status,
-            .containerOrchestrationType
-          )') > job-definition.json
+          jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
   
       - name: Debug AWS Batch job definition output2
         run: |
@@ -281,7 +277,7 @@ jobs:
           IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-batch-default }}:${{ needs.build-tag.outputs.tag }}"
           jq --arg container_name "$CONTAINER_NAME" --arg image_uri "$IMAGE_URI" \
             '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
-            job-definition.json > new_job-definition.json && mv new_job-definition.json job-definition.json
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
 
       - name: Debug AWS Batch job definition output3
         run: |
