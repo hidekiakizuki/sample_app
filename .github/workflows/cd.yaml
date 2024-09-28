@@ -270,6 +270,10 @@ jobs:
             .containerOrchestrationType
           )') > job-definition.json
   
+      - name: Debug AWS Batch job definition output2
+        run: |
+          cat job-definition.json
+
       - name: Modify AWS Batch job definition
         id: modify-job-definition-image-batch-default
         run: |
@@ -279,7 +283,7 @@ jobs:
             '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
             job-definition.json > new_job-definition.json && mv new_job-definition.json job-definition.json
 
-      - name: Debug AWS Batch job definition output2
+      - name: Debug AWS Batch job definition output3
         run: |
           cat job-definition.json
     
