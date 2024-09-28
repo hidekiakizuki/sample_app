@@ -252,7 +252,7 @@ jobs:
 #        run: |
 #          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
 
-      - name: Debug AWS Batch job definition output
+      - name: Debug AWS Batch job definition output1
         run: |
           aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
           cat job-definition.json
@@ -277,11 +277,15 @@ jobs:
           IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-batch-default }}:${{ needs.build-tag.outputs.tag }}"
           jq --arg container_name "$CONTAINER_NAME" --arg image_uri "$IMAGE_URI" \
             '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
-            job_definition.json > new_job_definition.json && mv new_job_definition.json job_definition.json
+            job-definition.json > new_job-definition.json && mv new_job-definition.json job-definition.json
 
+      - name: Debug AWS Batch job definition output2
+        run: |
+          cat job-definition.json
+    
       - name: Register new AWS Batch job definition
         run: |
-          aws batch register-job-definition --cli-input-json job_definition.json
+          aws batch register-job-definition --cli-input-json job-definition.json
 
   notify:
     needs:
