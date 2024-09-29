@@ -85,7 +85,7 @@ jobs:
 
     strategy:
       matrix:
-        app: ['web-app', 'web-server']
+        app: ['web-app', 'web-server', 'batch-default']
         include:
           - app: web-app
             build-context: .
@@ -99,17 +99,18 @@ jobs:
             build-args: ''
             ecr-repo-name: sample_app/web_server
             target: production
-          - app: batch
+          - app: batch-default
             build-context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            ecr-repo-name: sample_app/batch
+            ecr-repo-name: sample_app/batch_default
             target: batch_production
 
     outputs:
       # タグ付きイメージを渡したいところですが、env.AWS_ACCOUNT_IDがsecretsでマスキングされるのでECRリポジトリ名を渡します。
       ecr-repo-name-web-app: ${{ steps.set-ecr-repo-name-web-app.outputs.ecr-repo-name-web-app }}
       ecr-repo-name-web-server: ${{ steps.set-ecr-repo-name-web-server.outputs.ecr-repo-name-web-server }}
+      ecr-repo-name-batch-default: ${{ steps.set-ecr-repo-name-batch-default.outputs.ecr-repo-name-batch-default }}
 
     steps:
       - name: Check out code
@@ -153,7 +154,12 @@ jobs:
         if: matrix.app == 'web-server'
         run: echo "ecr-repo-name-web-server=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
-  render-task-definition-and-deploy:
+      - name: Output ECR repository name for batch
+        id: set-ecr-repo-name-batch-default
+        if: matrix.app == 'batch-default'
+        run: echo "ecr-repo-name-batch-default=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
+
+  render-ecs-task-definition-and-deploy:
     needs:
       - build-tag
       - build-and-push-image
@@ -175,11 +181,11 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download task definition
+      - name: Download Amazon ECS task definition
         run: |
           aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME_WEB }} --query taskDefinition > task-definition.json
 
-      - name: Remove unnecessary fields from task definition
+      - name: Remove unnecessary fields from Amazon ECS task definition
         run: |
           echo $(cat task-definition.json | jq 'del(
             .compatibilities,
@@ -223,13 +229,75 @@ jobs:
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }}
 
+  render-batch-default-job-definition:
+    needs:
+      - build-tag
+      - build-and-push-image
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+#      - name: Download AWS Batch job definition
+#        run: |
+#          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
+
+      - name: Debug AWS Batch job definition output1
+        run: |
+          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
+          cat job-definition.json
+
+      - name: Remove unnecessary fields from AWS Batch job definition
+        run: |
+          jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
+  
+      - name: Debug AWS Batch job definition output2
+        run: |
+          cat job-definition.json
+
+      - name: Modify AWS Batch job definition
+        id: modify-job-definition-image-batch-default
+        run: |
+          CONTAINER_NAME="${{ secrets.BATCH_CONTAINER_NAME_DEFAULT }}"
+          IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-batch-default }}:${{ needs.build-tag.outputs.tag }}"
+          jq --arg container_name "$CONTAINER_NAME" --arg image_uri "$IMAGE_URI" \
+            '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
+
+      - name: Debug AWS Batch job definition output3
+        run: |
+          cat job-definition.json
+    
+      - name: Validate JSON structure
+        run: |
+          jq '.' job-definition.json
+
+      - name: Check AWS CLI version
+        run: aws --version
+  
+      - name: Register new AWS Batch job definition
+        run: |
+          aws batch register-job-definition --cli-input-json file://job-definition.json
+
   notify:
     needs:
       - check-active-deployments
       - ci
       - build-tag
       - build-and-push-image
-      - render-task-definition-and-deploy
+      - render-ecs-task-definition-and-deploy
+      - render-batch-default-job-definition
 
     runs-on: ubuntu-latest
 
@@ -244,11 +312,12 @@ jobs:
              [ "${{ needs.ci.result }}" == "success" ] && \
              [ "${{ needs.build-tag.result }}" == "success" ] && \
              [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
-             [ "${{ needs.render-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ needs.render-ecs-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ needs.render-batch-default-job-definition.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
+            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
