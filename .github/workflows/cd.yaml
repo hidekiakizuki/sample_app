@@ -248,19 +248,24 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download AWS Batch job definition
+#      - name: Download AWS Batch job definition
+#        run: |
+#          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
+
+      - name: Debug AWS Batch job definition output1
         run: |
-          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch'], &revision)[-1]" > job-definition.json
+          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
+          cat job-definition.json
 
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
-          echo $(cat job-definition.json | jq 'del(
-            .jobDefinitionArn,
-            .revision,
-            .status,
-            .containerOrchestrationType
-          )') > job-definition.json
+          jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
   
+      - name: Debug AWS Batch job definition output2
+        run: |
+          cat job-definition.json
+
       - name: Modify AWS Batch job definition
         id: modify-job-definition-image-batch-default
         run: |
@@ -268,11 +273,22 @@ jobs:
           IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-batch-default }}:${{ needs.build-tag.outputs.tag }}"
           jq --arg container_name "$CONTAINER_NAME" --arg image_uri "$IMAGE_URI" \
             '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
-            job_definition.json > new_job_definition.json && mv new_job_definition.json job_definition.json
+            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
 
+      - name: Debug AWS Batch job definition output3
+        run: |
+          cat job-definition.json
+    
+      - name: Validate JSON structure
+        run: |
+          jq '.' job-definition.json
+
+      - name: Check AWS CLI version
+        run: aws --version
+  
       - name: Register new AWS Batch job definition
         run: |
-          aws batch register-job-definition --cli-input-json job_definition.json
+          aws batch register-job-definition --cli-input-json file://job-definition.json
 
   notify:
     needs:
