@@ -248,6 +248,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Debug AWS Batch job definition output1
+        run: |
+          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
+
       - name: Remove unnecessary fields from AWS Batch job definition
         run: |
           jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
