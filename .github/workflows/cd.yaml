@@ -301,7 +301,11 @@ jobs:
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+            message2="デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            if [ -n "${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}" ]; then
+              message2="${message2}\n\nまたCodeBuildで「デプロイを停止してロールバック」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}"
+            fi
+            echo "message2=${message2}" >> $GITHUB_OUTPUT
           fi
 
       - name: Notify Slack
