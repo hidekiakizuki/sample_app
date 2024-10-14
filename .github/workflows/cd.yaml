@@ -37,12 +37,9 @@ jobs:
           fi
 
   ci:
-    needs: check-active-deployments
     uses: ./.github/workflows/ci.yaml
 
   build-tag:
-    needs: check-active-deployments
-
     runs-on: ubuntu-latest
 
     timeout-minutes: 10
@@ -161,7 +158,7 @@ jobs:
 
   render-ecs-task-definition-and-deploy:
     needs:
-      - build-tag
+      - check-active-deployments
       - build-and-push-image
 
     runs-on: ubuntu-latest
@@ -231,8 +228,7 @@ jobs:
 
   render-batch-default-job-definition:
     needs:
-      - build-tag
-      - build-and-push-image
+      - render-ecs-task-definition-and-deploy
 
     runs-on: ubuntu-latest
 
