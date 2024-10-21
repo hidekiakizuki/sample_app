@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-task test: :environment do
+task :test, ['message'] => :environment do |_task, args|
   article = Article.first
-  Rails.logger.info "■■■■■■ Batch Test OK: Article title: #{article&.title}"
+  Rails.logger.info "■■■■■■ Batch Test OK - message: #{args&.message}, extras: #{args&.extras&.join('/')}, Article title: #{article&.title}"
 end
