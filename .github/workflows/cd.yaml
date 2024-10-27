@@ -82,32 +82,25 @@ jobs:
 
     strategy:
       matrix:
-        app: ['web-app', 'web-server', 'batch-default']
+        app: ['main', 'web-server']
         include:
-          - app: web-app
+          - app: main
             build-context: .
             dockerfile: ./Dockerfile
             build-args: APP_ENV=production
-            ecr-repo-name: sample_app/web_app
-            target: web_production
+            ecr-repo-name: sample_app/main
+            target: production
           - app: web-server
             build-context: ./docker/nginx
             dockerfile: ./docker/nginx/Dockerfile
             build-args: ''
             ecr-repo-name: sample_app/web_server
             target: production
-          - app: batch-default
-            build-context: .
-            dockerfile: ./Dockerfile
-            build-args: APP_ENV=production
-            ecr-repo-name: sample_app/batch_default
-            target: batch_production
 
     outputs:
       # タグ付きイメージを渡したいところですが、env.AWS_ACCOUNT_IDがsecretsでマスキングされるのでECRリポジトリ名を渡します。
-      ecr-repo-name-web-app: ${{ steps.set-ecr-repo-name-web-app.outputs.ecr-repo-name-web-app }}
+      ecr-repo-name-main: ${{ steps.set-ecr-repo-name-main.outputs.ecr-repo-name-main }}
       ecr-repo-name-web-server: ${{ steps.set-ecr-repo-name-web-server.outputs.ecr-repo-name-web-server }}
-      ecr-repo-name-batch-default: ${{ steps.set-ecr-repo-name-batch-default.outputs.ecr-repo-name-batch-default }}
 
     steps:
       - name: Check out code
@@ -141,20 +134,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output ECR repository name for web-app
-        id: set-ecr-repo-name-web-app
-        if: matrix.app == 'web-app'
-        run: echo "ecr-repo-name-web-app=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
+      - name: Output ECR repository name for main
+        id: set-ecr-repo-name-main
+        if: matrix.app == 'main'
+        run: echo "ecr-repo-name-main=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
       - name: Output ECR repository name for web-server
         id: set-ecr-repo-name-web-server
         if: matrix.app == 'web-server'
         run: echo "ecr-repo-name-web-server=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
-
-      - name: Output ECR repository name for batch
-        id: set-ecr-repo-name-batch-default
-        if: matrix.app == 'batch-default'
-        run: echo "ecr-repo-name-batch-default=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
   render-ecs-task-definition-and-deploy:
     needs:
@@ -195,19 +183,19 @@ jobs:
             .registeredBy
           )') > task-definition.json
 
-      - name: Modify Amazon ECS task definition for web-app
-        id: modify-task-definition-image-web-app
+      - name: Modify Amazon ECS task definition for main
+        id: modify-task-definition-image-main
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_APP }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-app }}:${{ needs.build-tag.outputs.tag }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-main }}:${{ needs.build-tag.outputs.tag }}
 
       - name: Modify Amazon ECS task definition for web-server
         id: modify-task-definition-image-web-server
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.modify-task-definition-image-web-app.outputs.task-definition }}
+          task-definition: ${{ steps.modify-task-definition-image-main.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-server }}:${{ needs.build-tag.outputs.tag }}
 
@@ -227,48 +215,6 @@ jobs:
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }}
 
-  render-batch-default-job-definition:
-    needs:
-      - build-tag
-      - build-and-push-image
-      - render-ecs-task-definition-and-deploy
-
-    runs-on: ubuntu-latest
-
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Debug AWS Batch job definition output1
-        run: |
-          aws batch describe-job-definitions --job-definition-name batch-default --status ACTIVE --query "sort_by(jobDefinitions[?jobDefinitionName=='batch-default'], &revision)[-1]" > job-definition.json
-
-      - name: Remove unnecessary fields from AWS Batch job definition
-        run: |
-          jq 'del(.jobDefinitionArn, .revision, .status, .containerOrchestrationType)' \
-            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
-  
-      - name: Modify AWS Batch job definition
-        id: modify-job-definition-image-batch-default
-        run: |
-          CONTAINER_NAME="${{ secrets.BATCH_CONTAINER_NAME_DEFAULT }}"
-          IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-batch-default }}:${{ needs.build-tag.outputs.tag }}"
-          jq --arg container_name "$CONTAINER_NAME" --arg image_uri "$IMAGE_URI" \
-            '.ecsProperties.taskProperties[].containers[] |= if .name == $container_name then .image = $image_uri else . end' \
-            job-definition.json > new-job-definition.json && mv new-job-definition.json job-definition.json
-
-      - name: Register new AWS Batch job definition
-        run: |
-          aws batch register-job-definition --cli-input-json file://job-definition.json
-
   notify:
     needs:
       - check-active-deployments
@@ -276,7 +222,6 @@ jobs:
       - build-tag
       - build-and-push-image
       - render-ecs-task-definition-and-deploy
-      - render-batch-default-job-definition
 
     runs-on: ubuntu-latest
 
@@ -292,7 +237,6 @@ jobs:
              [ "${{ needs.build-tag.result }}" == "success" ] && \
              [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
              [ "${{ needs.render-ecs-task-definition-and-deploy.result }}" == "success" ] && \
-             [ "${{ needs.render-batch-default-job-definition.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT

@@ -3,8 +3,8 @@ services:
     image: postgres
     container_name: sample_app_postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: --encoding=UTF-8 --locale=C
       TZ: Asia/Tokyo
     ports:
@@ -15,39 +15,32 @@ services:
   sample_app_web_app:
     build:
       context: .
-      target: web_development
+      target: development
       args:
         - APP_ENV=development
     image: sample_app_web_app:dev
     container_name: sample_app_web_app.dev
     volumes:
       - .:/sample_app:cached
-      - sample_app_bundle:/usr/local/bundle
     env_file:
       - .env
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      AWS_REGION: ${AWS_REGION}
     ports:
       - "3000:3000"
     tty: true
     stdin_open: true
+    command: >
+      bash -c "rm -f /sample_app/tmp/pids/server.pid && \
+      bundle install --jobs $(nproc) && \
+      (bundle exec rails db:create || true) && \
+      bundle exec rails db:migrate && \
+      bundle exec rails s -p 3000 -b '0.0.0.0'"
     depends_on:
       - sample_app_db
-  sample_app_batch:
-    build:
-      context: .
-      target: batch_development
-      args:
-        - APP_ENV=development
-    image: sample_app_batch:dev
-    container_name: sample_app_batch.dev
-    volumes:
-      - .:/sample_app:cached
-      - sample_app_bundle:/usr/local/bundle
-    env_file:
-      - .env
-    tty: true
-    stdin_open: true
-    depends_on:
-      - sample_app_web_app
 volumes:
   sample_app_postgres:
-  sample_app_bundle:
