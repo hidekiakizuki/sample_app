@@ -301,14 +301,13 @@ jobs:
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
-            cat <<-EOF >> $GITHUB_OUTPUT
-              message2=デプロイに問題がない場合、CodeDeployで「元のタスクセットの終了」を実行してください。
-              CodeDeploy
-              Web
-              https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}
-
-              問題があった場合は「デプロイを停止してロールバック」を実行し、Workerを前のタスク定義に戻してロールバックしてください。
-            EOF
+            message2="デプロイに問題がない場合、CodeDeployで「元のタスクセットの終了」を実行してください。\n"
+            message2+="CodeDeploy\n"
+            message2+="Web\n"
+            message2+="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}\n"
+            message2+="\n"
+            message2+="問題があった場合は「デプロイを停止してロールバック」を実行し、Workerを前のタスク定義に戻してロールバックしてください。"
+            echo "message2=${message2}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
@@ -318,17 +317,14 @@ jobs:
               web_link="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}"
             fi
 
-            message2=$(cat <<-EOF
-              デプロイに問題が発生しました。詳細を確認してください。
-              GitHub Actions
-              https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-              CodeDeployで「デプロイを停止してロールバック」を実行してください。
-              ${web_link}
-
-              またWorkerを前のタスク定義に戻してロールバックしてください。
-            EOF)
-
+            message2="デプロイに問題が発生しました。詳細を確認してください。\n"
+            message2+="GitHub Actions\n"
+            message2+="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+            message2+="\n"
+            message2+="CodeDeployで「デプロイを停止してロールバック」を実行してください。\n"
+            message2+="${web_link}\n"
+            message2+="\n"
+            message2+="またWorkerを前のタスク定義に戻してロールバックしてください。"          
             echo "message2=${message2}" >> $GITHUB_OUTPUT
           fi
 
