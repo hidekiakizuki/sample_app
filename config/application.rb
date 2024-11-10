@@ -23,5 +23,7 @@ module Src
 
     # 追加
     config.time_zone = 'Tokyo'
+
+    config.active_job.queue_adapter = :sqs
   end
 end
