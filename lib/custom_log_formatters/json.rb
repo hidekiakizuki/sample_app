@@ -38,7 +38,7 @@ module CustomLogFormatters
     def extract_pure_message(original_message)
       return original_message if current_tags.blank?
 
-      original_message&.split("[#{current_tags.last}] ")&.last
+      original_message&.split("[#{current_tags.last}] ", 2)&.last.presence || original_message
     end
 
     def parse_message(message)

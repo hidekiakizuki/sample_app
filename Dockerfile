@@ -97,7 +97,7 @@ ENTRYPOINT ["./bin/entrypoint.sh"]
 
 FROM app_base AS development
 
-CMD ["bash", "-c", "bundle exec rails s -p 3000 -b '0.0.0.0'"]
+CMD ["tail", "-f", "/dev/null"]
 
 # ---------------------------------------------------------------
 
@@ -109,4 +109,4 @@ VOLUME /"${APP_NAME}"/tmp /"${APP_NAME}"/public
 
 RUN echo "Running in production mode"
 
-CMD ["bash", "-c", "bundle exec puma -C config/puma.rb"]
+CMD ["tail", "-f", "/dev/null"]
