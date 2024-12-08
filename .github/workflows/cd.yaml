@@ -26,14 +26,14 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check deployments
+      - name: Check web deployments
         run: |
           ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }} --include-only-statuses "Created" "Queued" "InProgress" --query 'deployments' --output text)
           if [ -n "$ACTIVE_DEPLOYMENTS" ]; then
             echo "Active deployment(s) found: $ACTIVE_DEPLOYMENTS"
             exit 1
           else
-            echo "No active deployments found."
+            echo "No active web deployments found."
           fi
 
   ci:
@@ -130,6 +130,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
           target: ${{ matrix.target }}
+          platforms: linux/amd64
+          provenance: false
           tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -144,7 +146,7 @@ jobs:
         if: matrix.app == 'web-server'
         run: echo "ecr-repo-name-web-server=${{ matrix.ecr-repo-name }}" >> "$GITHUB_OUTPUT"
 
-  render-ecs-task-definition-and-deploy:
+  deploy-web:
     needs:
       - check-active-deployments
       - build-tag
@@ -169,11 +171,11 @@ jobs:
 
       - name: Download Amazon ECS task definition
         run: |
-          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME_WEB }} --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME_WEB }} --query taskDefinition > task-definition-web.json
 
       - name: Remove unnecessary fields from Amazon ECS task definition
         run: |
-          echo $(cat task-definition.json | jq 'del(
+          echo $(cat task-definition-web.json | jq 'del(
             .compatibilities,
             .taskDefinitionArn,
             .requiresAttributes,
@@ -181,13 +183,13 @@ jobs:
             .status,
             .registeredAt,
             .registeredBy
-          )') > task-definition.json
+          )') > task-definition-web.json
 
-      - name: Modify Amazon ECS task definition for main
-        id: modify-task-definition-image-main
+      - name: Modify Amazon ECS task definition for web-app
+        id: modify-task-definition-image-web-app
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition.json
+          task-definition: task-definition-web.json
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_APP }}
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-main }}:${{ needs.build-tag.outputs.tag }}
 
@@ -195,13 +197,13 @@ jobs:
         id: modify-task-definition-image-web-server
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.modify-task-definition-image-main.outputs.task-definition }}
+          task-definition: ${{ steps.modify-task-definition-image-web-app.outputs.task-definition }}
           container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}
           image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-web-server }}:${{ needs.build-tag.outputs.tag }}
 
-      - name: Prepare appspec.json
+      - name: Prepare appspec-web.json
         run: |
-          sed 's/{{LB_INFO_CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}/g' .github/templates/appspec.template.json > .github/templates/appspec.json
+          sed 's/{{LB_INFO_CONTAINER_NAME}}/${{ secrets.ECS_CONTAINER_NAME_WEB_SERVER }}/g' .github/templates/appspec-web.template.json > .github/templates/appspec-web.json
 
       - name: Deploy to Amazon ECS service
         id: deploy
@@ -211,9 +213,66 @@ jobs:
           service: ${{ secrets.ECS_SERVICE_NAME_WEB }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME_WEB }}
           wait-for-service-stability: false
-          codedeploy-appspec: .github/templates/appspec.json
+          codedeploy-appspec: .github/templates/appspec-web.json
           codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WEB }}
           codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WEB }}
+
+  deploy-worker:
+    needs:
+      - check-active-deployments
+      - build-tag
+      - build-and-push-image
+      - deploy-web # 念の為webのデプロイ成功後とします。
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    outputs:
+      codedeploy-deployment-id: ${{ steps.deploy.outputs.codedeploy-deployment-id }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Amazon ECS task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_DEFINITION_FAMILY_NAME_WORKER }} --query taskDefinition > task-definition-worker.json
+
+      - name: Remove unnecessary fields from Amazon ECS task definition
+        run: |
+          echo $(cat task-definition-worker.json | jq 'del(
+            .compatibilities,
+            .taskDefinitionArn,
+            .requiresAttributes,
+            .revision,
+            .status,
+            .registeredAt,
+            .registeredBy
+          )') > task-definition-worker.json
+
+      - name: Modify Amazon ECS task definition for worker
+        id: modify-task-definition-image-worker
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-worker.json
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_WORKER }}
+          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ needs.build-and-push-image.outputs.ecr-repo-name-main }}:${{ needs.build-tag.outputs.tag }}
+
+      - name: Deploy to Amazon ECS service
+        id: deploy
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.modify-task-definition-image-worker.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_NAME_WORKER }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME_WORKER }}
+          wait-for-service-stability: true
 
   notify:
     needs:
@@ -221,7 +280,8 @@ jobs:
       - ci
       - build-tag
       - build-and-push-image
-      - render-ecs-task-definition-and-deploy
+      - deploy-web
+      - deploy-worker
 
     runs-on: ubuntu-latest
 
@@ -236,18 +296,35 @@ jobs:
              [ "${{ needs.ci.result }}" == "success" ] && \
              [ "${{ needs.build-tag.result }}" == "success" ] && \
              [ "${{ needs.build-and-push-image.result }}" == "success" ] && \
-             [ "${{ needs.render-ecs-task-definition-and-deploy.result }}" == "success" ] && \
+             [ "${{ needs.deploy-web.result }}" == "success" ] && \
+             [ "${{ needs.deploy-worker.result }}" == "success" ] && \
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
-            echo "message2=デプロイに問題がない場合、CodeBuildで「元のタスクセットの終了」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}" >> $GITHUB_OUTPUT
+            message2="デプロイに問題がない場合、CodeDeployで「元のタスクセットの終了」を実行してください。\n"
+            message2+="CodeDeploy\n"
+            message2+="Web\n"
+            message2+="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}\n"
+            message2+="\n"
+            message2+="問題があった場合は「デプロイを停止してロールバック」を実行し、Workerを前のタスク定義に戻してロールバックしてください。"
+            echo "message2=${message2}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
-            message2="デプロイに問題が発生しました。詳細を確認してください。\nGitHub Actions\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            if [ -n "${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}" ]; then
-              message2="${message2}\n\nまたCodeBuildで「デプロイを停止してロールバック」を実行してください。\nCodeDeploy\nhttps://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.render-ecs-task-definition-and-deploy.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}"
+
+            rollback_web=""
+            if [ -n "${{ needs.deploy-web.outputs.codedeploy-deployment-id }}" ]; then
+              rollback_web="\n"
+              rollback_web+="CodeDeployで「デプロイを停止してロールバック」を実行してください。\n"
+              rollback_web+="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}\n"
             fi
+
+            message2="デプロイに問題が発生しました。詳細を確認してください。\n"
+            message2+="GitHub Actions\n"
+            message2+="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+            message2+="${rollback_web}"
+            message2+="\n"
+            message2+="必要があればWorkerを前のタスク定義に戻してロールバックしてください。"
             echo "message2=${message2}" >> $GITHUB_OUTPUT
           fi
 

@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   # root "articles#index"
   root 'articles#index'
 
+  get '/async_test_job' => 'async_test_job#enqueue'
+
   get '/healthy'   => 'monitoring#healthy'
   get '/synthetic' => 'monitoring#synthetic'
 
