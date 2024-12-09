@@ -130,7 +130,6 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
           target: ${{ matrix.target }}
-          platforms: linux/amd64
           provenance: false
           tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
