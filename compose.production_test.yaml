@@ -67,10 +67,21 @@ services:
       - sample_app_web_app
 
   sample_app_worker:
-    <<: *sample_app_base
-    container_name: sample_app_worker.prd
+    image: 590184114101.dkr.ecr.ap-northeast-1.amazonaws.com/sample_app/main:staging-2024-1110-160607-8b022681a4faa64d087625972951c9eff854c65d
+    platform: linux/amd64
+    env_file:
+      - .env
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      AWS_REGION: ${AWS_REGION}
+    tty: true
+    stdin_open: true
+    container_name: worker
     command: >
-      bash -c "bundle exec aws_sqs_active_job --queue default"
+      bundle exec aws_sqs_active_job --queue default
     depends_on:
       localstack:
         condition: service_healthy

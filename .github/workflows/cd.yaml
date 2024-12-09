@@ -36,16 +36,6 @@ jobs:
             echo "No active web deployments found."
           fi
 
-      - name: Check worker deployments
-        run: |
-          ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ secrets.CODE_DEPLOY_APPLICATION_WORKER }} --deployment-group-name ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WORKER }} --include-only-statuses "Created" "Queued" "InProgress" --query 'deployments' --output text)
-          if [ -n "$ACTIVE_DEPLOYMENTS" ]; then
-            echo "Active deployment(s) found: $ACTIVE_DEPLOYMENTS"
-            exit 1
-          else
-            echo "No active worker deployments found."
-          fi
-
   ci:
     uses: ./.github/workflows/ci.yaml
 
@@ -128,10 +118,10 @@ jobs:
           mask-password: 'true'
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3.7.1
 
       - name: Build and push to Amazon ECR
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v6.10.0
         env:
           DOCKER_CONTENT_TRUST: 1
         with:
@@ -140,8 +130,6 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: ${{ matrix.build-args }}
           target: ${{ matrix.target }}
-          platforms: linux/amd64
-          provenance: false
           tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr-repo-name }}:${{ needs.build-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -232,6 +220,7 @@ jobs:
       - check-active-deployments
       - build-tag
       - build-and-push-image
+      - deploy-web # 念の為webのデプロイ成功後とします。
 
     runs-on: ubuntu-latest
 
@@ -281,10 +270,7 @@ jobs:
           task-definition: ${{ steps.modify-task-definition-image-worker.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE_NAME_WORKER }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME_WORKER }}
-          wait-for-service-stability: false
-          codedeploy-appspec: .github/templates/appspec-worker.json
-          codedeploy-application: ${{ secrets.CODE_DEPLOY_APPLICATION_WORKER }}
-          codedeploy-deployment-group: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_WORKER }}
+          wait-for-service-stability: true
 
   notify:
     needs:
@@ -313,43 +299,30 @@ jobs:
              [ "${{ job.status }}" == "success" ]; then
             echo "conclusion=success"
             echo "message1=:tada: デプロイに成功しました" >> $GITHUB_OUTPUT
-            cat <<-EOF >> $GITHUB_OUTPUT
-              message2=デプロイに問題がない場合、CodeDeployで「元のタスクセットの終了」を実行してください。
-              CodeDeploy
-              Web
-              https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}
-
-              Worker
-              https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-worker.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}
-            EOF
+            message2="デプロイに問題がない場合、CodeDeployで「元のタスクセットの終了」を実行してください。\n"
+            message2+="CodeDeploy\n"
+            message2+="Web\n"
+            message2+="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}\n"
+            message2+="\n"
+            message2+="問題があった場合は「デプロイを停止してロールバック」を実行し、Workerを前のタスク定義に戻してロールバックしてください。"
+            echo "message2=${message2}" >> $GITHUB_OUTPUT
           else
             echo "conclusion=failure"
             echo "message1=:collision: デプロイに失敗しました" >> $GITHUB_OUTPUT
 
-            web_link="なし"
+            rollback_web=""
             if [ -n "${{ needs.deploy-web.outputs.codedeploy-deployment-id }}" ]; then
-              web_link="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}"
+              rollback_web="\n"
+              rollback_web+="CodeDeployで「デプロイを停止してロールバック」を実行してください。\n"
+              rollback_web+="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-web.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}\n"
             fi
 
-            worker_link="なし"
-            if [ -n "${{ needs.deploy-worker.outputs.codedeploy-deployment-id }}" ]; then
-              worker_link="https://console.aws.amazon.com/codesuite/codedeploy/deployments/${{ needs.deploy-worker.outputs.codedeploy-deployment-id }}?region=${{ env.AWS_REGION }}"
-            fi
-
-            message2=$(cat <<-EOF
-              デプロイに問題が発生しました。詳細を確認してください。
-              GitHub Actions
-              https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-              CodeDeployで「デプロイを停止してロールバック」を実行してください。
-              CodeDeploy
-              Web
-              ${web_link}
-
-              Worker
-              ${worker_link}
-            EOF)
-
+            message2="デプロイに問題が発生しました。詳細を確認してください。\n"
+            message2+="GitHub Actions\n"
+            message2+="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+            message2+="${rollback_web}"
+            message2+="\n"
+            message2+="必要があればWorkerを前のタスク定義に戻してロールバックしてください。"
             echo "message2=${message2}" >> $GITHUB_OUTPUT
           fi
 
