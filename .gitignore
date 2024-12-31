@@ -43,3 +43,6 @@ spec/examples.txt
 !/tmp/sockets/.keep
 .env
 volume/
+docker/elasticache/config/*.acl
+docker/elasticache/private/*.key
+docker/elasticache/certs/*.crt

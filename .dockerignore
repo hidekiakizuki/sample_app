@@ -7,6 +7,8 @@ app/assets/builds/*
 bin/release/
 config/master.key
 compose.*
+#docker/elasticache
+docker/localstack
 log/*
 !log/.keep
 node_modules/

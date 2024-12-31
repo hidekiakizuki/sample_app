@@ -49,6 +49,8 @@ services:
     depends_on:
       sample_app_db:
         condition: service_started
+      elasticache:
+        condition: service_healthy
       localstack:
         condition: service_healthy
 
@@ -67,24 +69,54 @@ services:
       - sample_app_web_app
 
   sample_app_worker:
-    image: 590184114101.dkr.ecr.ap-northeast-1.amazonaws.com/sample_app/main:staging-2024-1110-160607-8b022681a4faa64d087625972951c9eff854c65d
-    platform: linux/amd64
-    env_file:
-      - .env
-    environment:
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-      AWS_REGION: ${AWS_REGION}
-    tty: true
-    stdin_open: true
+    <<: *sample_app_base
     container_name: worker
     command: >
       bundle exec aws_sqs_active_job --queue default
     depends_on:
       localstack:
         condition: service_healthy
+
+  #elasticache:
+  #  image: valkey/valkey:latest
+  #  ports:
+  #    - "6379:6379"
+  #  environment:
+  #    - ELASTICACHE_USER=${ELASTICACHE_USER}
+  #    - ELASTICACHE_PASSWORD=${ELASTICACHE_PASSWORD}
+  #    - ELASTICACHE_HOST=${ELASTICACHE_HOST}
+  #    - VALKEY_TLS_ENABLED=yes
+  #    - VALKEY_TLS_CERT_FILE=/etc/ssl/certs/server.crt
+  #    - VALKEY_TLS_KEY_FILE=/etc/ssl/private/server.key
+  #    - VALKEY_TLS_CA_FILE=/etc/ssl/certs/ca.crt
+  #    - VALKEY_ACLFILE=/etc/valkey/users.acl
+  #  volumes:
+  #    - "./docker/elasticache/certs:/etc/ssl/certs"
+  #    - "./docker/elasticache/private:/etc/ssl/private"
+  #    - "./docker/elasticache/config/users.acl:/etc/valkey/users.acl"
+  #  command: >
+  #    redis-server
+  #      --bind 0.0.0.0
+  #      --tls-port 6379
+  #      --port 0
+  #      --aclfile /etc/valkey/users.acl
+  #      --tls-cert-file /etc/ssl/certs/server.crt
+  #      --tls-key-file /etc/ssl/private/server.key
+  #      --tls-ca-cert-file /etc/ssl/certs/ca.crt
+  #  healthcheck:
+  #    test: [
+  #      "CMD",
+  #      "redis-cli",
+  #      "--tls",
+  #      "--cert", "/etc/ssl/certs/server.crt",
+  #      "--key", "/etc/ssl/private/server.key",
+  #      "--cacert", "/etc/ssl/certs/ca.crt",
+  #      "-u", "rediss://${ELASTICACHE_USER}:${ELASTICACHE_PASSWORD}@localhost:6379",
+  #      "ping"
+  #    ]
+  #    interval: 1s
+  #    timeout: 5s
+  #    retries: 3
 
   localstack:
     container_name: "${LOCALSTACK_DOCKER_NAME:-localstack-main}"
