@@ -49,6 +49,8 @@ services:
     depends_on:
       sample_app_db:
         condition: service_started
+      redis:
+        condition: service_healthy
       localstack:
         condition: service_healthy
 
@@ -67,24 +69,23 @@ services:
       - sample_app_web_app
 
   sample_app_worker:
-    image: 590184114101.dkr.ecr.ap-northeast-1.amazonaws.com/sample_app/main:staging-2024-1110-160607-8b022681a4faa64d087625972951c9eff854c65d
-    platform: linux/amd64
-    env_file:
-      - .env
-    environment:
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-      AWS_REGION: ${AWS_REGION}
-    tty: true
-    stdin_open: true
+    <<: *sample_app_base
     container_name: worker
     command: >
       bundle exec aws_sqs_active_job --queue default
     depends_on:
       localstack:
         condition: service_healthy
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   localstack:
     container_name: "${LOCALSTACK_DOCKER_NAME:-localstack-main}"
