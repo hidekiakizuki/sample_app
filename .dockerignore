@@ -1,7 +1,10 @@
 .env*
 .git/
 .git*
+.vscode/
+.devcontainer/
 .yarn-integrity
+*.code-workspace
 app/assets/builds/*
 !app/assets/builds/.keep
 bin/release/
