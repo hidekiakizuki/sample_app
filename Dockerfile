@@ -72,7 +72,7 @@ ENV TZ=Asia/Tokyo
 WORKDIR /"${APP_NAME}"
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential curl libpq-dev postgresql-client vim  \
+  && apt-get install -y --no-install-recommends build-essential curl libpq-dev postgresql-client vim git \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
   && apt-get clean \
   && useradd -m -u ${USER_ID} ${USER} \
