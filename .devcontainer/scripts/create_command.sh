@@ -7,7 +7,7 @@ apt update -y
 echo "📦 Installing necessary packages..."
 apt install -y openssh-client git-secrets
 
-echo "🎨 Configuring Bash prompt colors..."
+echo "🎨 Configuring Bash prompt..."
 cat <<'EOF' >> ~/.bashrc
 parse_git_branch() {
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
